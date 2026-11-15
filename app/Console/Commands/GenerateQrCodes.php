@@ -15,7 +15,7 @@ class GenerateQrCodes extends Command
 {
     protected $signature = 'app:generate-qr-codes
         {--spa-ceylon= : How many gift packages get a Spa Ceylon gift voucher}
-        {--shangri-la= : How many gift packages get a Shangri-La dinner voucher}';
+        {--cinnamon-life= : How many gift packages get a Cinnamon Life dinner voucher}';
 
     protected $description = 'Generate one unique QR code per gift package for the Christmas promotion';
 
@@ -23,11 +23,11 @@ class GenerateQrCodes extends Command
     {
         $gifts = [
             Gift::SpaCeylon->value => (int) ($this->option('spa-ceylon') ?? config('promo.gifts.spa_ceylon')),
-            Gift::ShangriLaDinner->value => (int) ($this->option('shangri-la') ?? config('promo.gifts.shangri_la_dinner')),
+            Gift::CinnamonLifeDinner->value => (int) ($this->option('cinnamon-life') ?? config('promo.gifts.cinnamon_life_dinner')),
         ];
 
         $this->components->twoColumnDetail(Gift::SpaCeylon->getLabel(), (string) $gifts[Gift::SpaCeylon->value]);
-        $this->components->twoColumnDetail(Gift::ShangriLaDinner->getLabel(), (string) $gifts[Gift::ShangriLaDinner->value]);
+        $this->components->twoColumnDetail(Gift::CinnamonLifeDinner->getLabel(), (string) $gifts[Gift::CinnamonLifeDinner->value]);
         $this->components->twoColumnDetail('Unique gift QR codes', (string) array_sum($gifts));
         $this->components->twoColumnDetail('Gift QR codes link to', rtrim((string) config('promo.qr_base_url'), '/').'/r/…');
         $this->components->twoColumnDetail('Shared "try again" QR links to', QrCode::tryAgainUrl());

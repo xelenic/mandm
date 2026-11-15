@@ -45,6 +45,34 @@ class RedeemController extends Controller
     }
 
     /**
+     * Home page: for people who can't scan their QR code, type the code
+     * printed on the card instead.
+     */
+    public function home(): View
+    {
+        return view('redeem.home');
+    }
+
+    public function search(Request $request): RedirectResponse
+    {
+        $request->validate(
+            ['code' => ['required', 'string', 'max:40']],
+            ['code.required' => 'Please enter the code printed on your card.'],
+        );
+
+        $qrCode = QrCode::findTyped($request->string('code'));
+
+        if ($qrCode === null) {
+            return back()
+                ->withInput()
+                ->withErrors(['code' => "We couldn't find this code. Please check it against your card and try again."]);
+        }
+
+        // From here it is exactly like scanning the QR code.
+        return redirect()->route('redeem.show', $qrCode->code);
+    }
+
+    /**
      * Packages without a gift: all share this one QR code.
      */
     public function tryAgain(): View

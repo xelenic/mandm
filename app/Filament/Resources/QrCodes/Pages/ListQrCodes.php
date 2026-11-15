@@ -2,8 +2,10 @@
 
 namespace App\Filament\Resources\QrCodes\Pages;
 
+use App\Actions\ClearPromoData;
 use App\Enums\Gift;
 use App\Filament\Resources\QrCodes\QrCodeResource;
+use App\Models\Claim;
 use App\Models\QrCode;
 use App\Services\Print\QrCardRenderer;
 use App\Services\QrCodeExporter;
@@ -28,7 +30,51 @@ class ListQrCodes extends ListRecords
             $this->tryAgainQrAction(),
             $this->generateAction(),
             $this->exportAction(),
+            $this->clearAllAction(),
         ];
+    }
+
+    /**
+     * Deletes every QR code and claim, so codes can be generated again.
+     * Needs "DELETE" typed in, because printed codes stop working.
+     */
+    private function clearAllAction(): Action
+    {
+        return Action::make('clearAll')
+            ->label('Clear all data')
+            ->icon(Heroicon::OutlinedTrash)
+            ->color('danger')
+            ->visible(fn (): bool => QrCode::query()->exists() || Claim::query()->exists())
+            ->authorize(fn (): bool => (bool) auth()->user()?->is_admin)
+            ->modalIcon(Heroicon::OutlinedExclamationTriangle)
+            ->modalIconColor('danger')
+            ->modalHeading('Clear all promo data?')
+            ->modalDescription(function (): string {
+                $counts = app(ClearPromoData::class)->counts();
+
+                return "This permanently deletes {$counts['qr_codes']} QR codes ({$counts['scanned']} already scanned) "
+                    ."and {$counts['claims']} gift claims, including winners' names, phone numbers and NIC numbers. "
+                    .'Any QR codes already printed will stop working. This cannot be undone. '
+                    .($counts['claims'] > 0 ? 'Download the claims CSV first if you need a record of winners.' : '');
+            })
+            ->schema([
+                TextInput::make('confirmation')
+                    ->label('Type DELETE to confirm')
+                    ->required()
+                    ->in(['DELETE'])
+                    ->validationMessages(['in' => 'Type DELETE in capital letters to confirm.'])
+                    ->autocomplete(false),
+            ])
+            ->modalSubmitActionLabel('Delete everything')
+            ->action(function (): void {
+                $deleted = app(ClearPromoData::class)->handle(auth()->user());
+
+                Notification::make()
+                    ->success()
+                    ->title('All promo data cleared')
+                    ->body("Deleted {$deleted['qr_codes']} QR codes and {$deleted['claims']} claims. You can now generate new QR codes.")
+                    ->send();
+            });
     }
 
     /**
@@ -75,19 +121,19 @@ class ListQrCodes extends ListRecords
                     ->minValue(0)
                     ->maxValue(100000)
                     ->default(config('promo.gifts.spa_ceylon')),
-                TextInput::make(Gift::ShangriLaDinner->value)
-                    ->label(Gift::ShangriLaDinner->getLabel().'s')
+                TextInput::make(Gift::CinnamonLifeDinner->value)
+                    ->label(Gift::CinnamonLifeDinner->getLabel().'s')
                     ->integer()
                     ->required()
                     ->minValue(0)
                     ->maxValue(100000)
-                    ->default(config('promo.gifts.shangri_la_dinner')),
+                    ->default(config('promo.gifts.cinnamon_life_dinner')),
             ])
             ->action(function (array $data): void {
                 try {
                     $count = app(QrCodeGenerator::class)->generate([
                         Gift::SpaCeylon->value => (int) $data[Gift::SpaCeylon->value],
-                        Gift::ShangriLaDinner->value => (int) $data[Gift::ShangriLaDinner->value],
+                        Gift::CinnamonLifeDinner->value => (int) $data[Gift::CinnamonLifeDinner->value],
                     ]);
                 } catch (RuntimeException|InvalidArgumentException $e) {
                     Notification::make()->danger()->title('QR codes were not generated')->body($e->getMessage())->send();

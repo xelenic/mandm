@@ -8,13 +8,13 @@ use Filament\Support\Contracts\HasLabel;
 enum Gift: string implements HasColor, HasLabel
 {
     case SpaCeylon = 'spa_ceylon';
-    case ShangriLaDinner = 'shangri_la_dinner';
+    case CinnamonLifeDinner = 'cinnamon_life_dinner';
 
     public function getLabel(): string
     {
         return match ($this) {
             self::SpaCeylon => 'Spa Ceylon Gift Voucher',
-            self::ShangriLaDinner => 'Shangri-La Hotel Dinner Voucher',
+            self::CinnamonLifeDinner => 'Cinnamon Life Dinner Voucher',
         };
     }
 
@@ -25,7 +25,7 @@ enum Gift: string implements HasColor, HasLabel
     {
         return match ($this) {
             self::SpaCeylon => 'Treat yourself to a relaxing Spa Ceylon experience.',
-            self::ShangriLaDinner => 'Enjoy a festive dinner at the Shangri-La Hotel.',
+            self::CinnamonLifeDinner => 'Enjoy a festive dinner at Cinnamon Life.',
         };
     }
 
@@ -33,7 +33,7 @@ enum Gift: string implements HasColor, HasLabel
     {
         return match ($this) {
             self::SpaCeylon => 'success',
-            self::ShangriLaDinner => 'warning',
+            self::CinnamonLifeDinner => 'warning',
         };
     }
 }

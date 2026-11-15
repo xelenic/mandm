@@ -51,3 +51,39 @@ it('is not confused by operator names inside strings', function () {
     expect(ops(ContentStreamFilter::suppressPainting($content, ['MC1'])))
         ->toBe('/OC /MC1 BDC BT ET EMC BT (EMC (nested) f) Tj ET');
 });
+
+describe('removing a stroked rectangle', function () {
+    $box = [37.61, 75.582, 83.521, 83.521];
+
+    it('removes the outline, drawn like the card artwork draws it', function () use ($box) {
+        $content = "0.275 0.063 0 RG 0.1 w\n121.131 75.582 -83.521 83.521 re\nS";
+
+        [$result, $removed] = ContentStreamFilter::removeStrokedRectangle($content, $box);
+
+        expect(ops($result))->toBe('0.275 0.063 0 RG 0.1 w 121.131 75.582 -83.521 83.521 re n')
+            ->and($removed)->toBe(1);
+    });
+
+    it('takes the current transformation into account', function () use ($box) {
+        $content = 'q 1 0 0 1 37.61 75.582 cm 0 0 83.521 83.521 re S Q 0 0 83.521 83.521 re S';
+
+        [$result, $removed] = ContentStreamFilter::removeStrokedRectangle($content, $box);
+
+        // Inside q/Q the rectangle is moved onto the box; after Q it is not.
+        expect(ops($result))->toBe('q 1 0 0 1 37.61 75.582 cm 0 0 83.521 83.521 re n Q 0 0 83.521 83.521 re S')
+            ->and($removed)->toBe(1);
+    });
+
+    it('leaves everything else alone', function (string $content) use ($box) {
+        [$result, $removed] = ContentStreamFilter::removeStrokedRectangle($content, $box);
+
+        expect(ops($result))->toBe(ops($content))
+            ->and($removed)->toBe(0);
+    })->with([
+        'a filled rectangle at the box' => ['37.61 75.582 83.521 83.521 re f'],
+        'a stroked rectangle elsewhere' => ['10 10 83.521 83.521 re S'],
+        'a smaller stroked rectangle' => ['37.61 75.582 40 40 re S'],
+        'the box plus another line in the same path' => ['37.61 75.582 83.521 83.521 re 0 0 m 5 5 l S'],
+        'an image' => ['q 83.521 0 0 83.521 37.61 75.582 cm /Im0 Do Q'],
+    ]);
+});

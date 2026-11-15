@@ -27,5 +27,12 @@ class AppServiceProvider extends ServiceProvider
         // is hopeless anyway; this just blocks abusive scripts.
         RateLimiter::for('redeem', fn (Request $request) => Limit::perMinute(60)->by($request->ip()));
         RateLimiter::for('redeem-submit', fn (Request $request) => Limit::perMinute(10)->by($request->ip()));
+
+        // Typing codes on the home page. Allows a few typos, but stops anyone
+        // trying codes in bulk.
+        RateLimiter::for('code-search', fn (Request $request) => [
+            Limit::perMinute(10)->by('minute:'.$request->ip()),
+            Limit::perHour(60)->by('hour:'.$request->ip()),
+        ]);
     }
 }

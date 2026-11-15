@@ -88,6 +88,135 @@ final class ContentStreamFilter
     }
 
     /**
+     * Stop a stroked rectangle (an outline with no fill, like the artwork's
+     * QR box) from being drawn. Only a path that is nothing but that one
+     * rectangle, stroked, is touched; its "S" becomes "n" (paint nothing).
+     *
+     * @param  array{0: float, 1: float, 2: float, 3: float}  $box  [left, bottom, width, height] in page points.
+     * @return array{0: string, 1: int} The new content, and how many outlines were removed.
+     */
+    public static function removeStrokedRectangle(string $content, array $box, float $tolerance = 0.5): array
+    {
+        $out = [];
+        $operands = [];
+        $ctm = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0];
+        $ctmStack = [];
+        $path = []; // one entry per path segment: true if it is the target rectangle
+        $removed = 0;
+        $i = 0;
+
+        while (($token = self::nextToken($content, $i)) !== null) {
+            [$isOperator, $text] = $token;
+
+            if (! $isOperator) {
+                $operands[] = $text;
+
+                continue;
+            }
+
+            if ($text === 'BI') {
+                $start = $i - 2;
+                $i = self::inlineImageEnd($content, $i);
+                $out[] = substr($content, $start, $i - $start);
+                $operands = [];
+
+                continue;
+            }
+
+            $line = implode(' ', [...$operands, $text]);
+            $numbers = array_map(floatval(...), $operands);
+
+            switch ($text) {
+                case 'q':
+                    $ctmStack[] = $ctm;
+                    break;
+                case 'Q':
+                    $ctm = array_pop($ctmStack) ?? $ctm;
+                    break;
+                case 'cm':
+                    if (count($numbers) === 6) {
+                        $ctm = self::multiply($numbers, $ctm);
+                    }
+                    break;
+                case 're':
+                    $path[] = count($numbers) === 4 && self::rectangleMatches($numbers, $ctm, $box, $tolerance);
+                    break;
+                case 'm': case 'l': case 'c': case 'v': case 'y': case 'h':
+                    $path[] = false;
+                    break;
+                case 'S': case 's':
+                    if ($path !== [] && ! in_array(false, $path, true)) {
+                        $line = 'n';
+                        $removed++;
+                    }
+                    $path = [];
+                    break;
+                case 'f': case 'F': case 'f*': case 'B': case 'B*': case 'b': case 'b*': case 'n':
+                    $path = [];
+                    break;
+            }
+
+            $out[] = $line;
+            $operands = [];
+        }
+
+        if ($operands !== []) {
+            $out[] = implode(' ', $operands);
+        }
+
+        return [implode("\n", $out)."\n", $removed];
+    }
+
+    /**
+     * Whether rectangle operands [x, y, w, h], drawn under $ctm, cover $box.
+     *
+     * @param  list<float>  $rect
+     * @param  list<float>  $ctm
+     * @param  array{0: float, 1: float, 2: float, 3: float}  $box
+     */
+    private static function rectangleMatches(array $rect, array $ctm, array $box, float $tolerance): bool
+    {
+        [$x, $y, $w, $h] = $rect;
+        [$a, $b, $c, $d, $e, $f] = $ctm;
+        $xs = [];
+        $ys = [];
+
+        foreach ([[$x, $y], [$x + $w, $y], [$x, $y + $h], [$x + $w, $y + $h]] as [$px, $py]) {
+            $xs[] = $a * $px + $c * $py + $e;
+            $ys[] = $b * $px + $d * $py + $f;
+        }
+
+        [$left, $bottom, $width, $height] = $box;
+
+        return abs(min($xs) - $left) <= $tolerance
+            && abs(max($xs) - ($left + $width)) <= $tolerance
+            && abs(min($ys) - $bottom) <= $tolerance
+            && abs(max($ys) - ($bottom + $height)) <= $tolerance;
+    }
+
+    /**
+     * Matrix product $m × $ctm, as the "cm" operator applies it.
+     *
+     * @param  list<float>  $m
+     * @param  list<float>  $ctm
+     * @return list<float>
+     */
+    private static function multiply(array $m, array $ctm): array
+    {
+        [$a, $b, $c, $d, $e, $f] = $m;
+        [$A, $B, $C, $D, $E, $F] = $ctm;
+
+        return [
+            $a * $A + $b * $C,
+            $a * $B + $b * $D,
+            $c * $A + $d * $C,
+            $c * $B + $d * $D,
+            $e * $A + $f * $C + $E,
+            $e * $B + $f * $D + $F,
+        ];
+    }
+
+    /**
      * The (possibly neutralised) instruction to write for one operator.
      *
      * @param  list<string>  $operands

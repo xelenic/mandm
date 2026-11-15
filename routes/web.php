@@ -4,9 +4,11 @@ use App\Http\Controllers\Admin\PromoExportController;
 use App\Http\Controllers\RedeemController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+// Home page: type the code printed on the card if the QR code won't scan.
+Route::get('/', [RedeemController::class, 'home'])->name('home');
+Route::post('/find', [RedeemController::class, 'search'])
+    ->middleware('throttle:code-search')
+    ->name('redeem.search');
 
 // Gift packages: each QR code is unique, /r/{code}.
 // Every other package: the same shared QR code, /try-again.

@@ -52,6 +52,43 @@ class QrCode extends Model
     }
 
     /**
+     * Find a code as a person typed it from their card: with or without the
+     * printed prefix ("MM-"), in any case, with spaces or dashes.
+     */
+    public static function findTyped(string $input): ?self
+    {
+        $code = strtoupper((string) preg_replace('/[\s\-_.]+/', '', $input));
+
+        if ($code === '') {
+            return null;
+        }
+
+        // Also try without the printed prefix. All real codes have the same
+        // length, so at most one of these can match.
+        $prefix = strtoupper(str_replace('-', '', (string) config('promo.card.code_text.prefix')));
+        $candidates = [$code];
+
+        if ($prefix !== '' && str_starts_with($code, $prefix)) {
+            $candidates[] = substr($code, strlen($prefix));
+        }
+
+        return static::query()->whereIn('code', $candidates)->first();
+    }
+
+    /**
+     * The code as printed on the gift card next to the QR code, e.g.
+     * "MM-QNTU8RJF7YCH", or null when printing it is switched off.
+     */
+    public function cardText(): ?string
+    {
+        if (! config('promo.card.code_text.enabled')) {
+            return null;
+        }
+
+        return config('promo.card.code_text.prefix').$this->code;
+    }
+
+    /**
      * The address encoded in the single shared QR code printed on every
      * package without a gift.
      */

@@ -11,27 +11,35 @@ use setasign\Fpdi\PdfParser\Type\PdfIndirectObjectReference;
 use setasign\Fpdi\PdfParser\Type\PdfName;
 use setasign\Fpdi\PdfParser\Type\PdfStream;
 use setasign\Fpdi\PdfParser\Type\PdfType;
+use setasign\Fpdi\PdfReader\PageBoundaries;
 use setasign\Fpdi\PdfReader\PdfReader;
 
 /**
- * Keeps layers that are switched off in a PDF invisible after its pages
- * are imported with FPDI.
+ * Prepares the designer's card artwork for printing QR codes onto it:
  *
- * FPDI copies a page's drawing but not the document's layer on/off
- * settings, so a hidden layer (e.g. the full-page helper layer in the
- * card artwork) would suddenly show. This returns a copy of the PDF in
- * which painting inside hidden layers is suppressed (see
- * ContentStreamFilter). The copy is the original bytes plus a standard
+ * 1. Keeps layers that are switched off invisible. FPDI copies a page's
+ *    drawing but not the document's layer on/off settings, so a hidden
+ *    layer (e.g. the full-page helper layer in the card artwork) would
+ *    suddenly show.
+ * 2. Optionally removes the thin outline the designer drew to mark where
+ *    the QR code goes.
+ *
+ * Both work by suppressing painting in the page content (see
+ * ContentStreamFilter). The result is the original bytes plus a standard
  * PDF incremental update; the source file is never changed.
  */
-final class HiddenLayerRemover
+final class ArtworkCleaner
 {
-    public function apply(string $pdf): string
+    /**
+     * @param  array{x: float, y: float, size: float}|null  $outlineToRemove  Square box whose stroked
+     *                                                                        outline to remove, in mm from the page's top-left corner (like promo.card.qr_box).
+     */
+    public function apply(string $pdf, ?array $outlineToRemove = null): string
     {
         $parser = new PdfParser(StreamReader::createByString($pdf));
         $hiddenGroups = $this->hiddenGroups($parser);
 
-        if ($hiddenGroups === []) {
+        if ($hiddenGroups === [] && $outlineToRemove === null) {
             return $pdf;
         }
 
@@ -40,9 +48,9 @@ final class HiddenLayerRemover
 
         for ($number = 1; $number <= $reader->getPageCount(); $number++) {
             $page = $reader->getPage($number);
-            $names = $this->hiddenPropertyNames($page->getAttribute('Resources'), $parser, $hiddenGroups);
+            $names = $hiddenGroups === [] ? [] : $this->hiddenPropertyNames($page->getAttribute('Resources'), $parser, $hiddenGroups);
 
-            if ($names === []) {
+            if ($names === [] && $outlineToRemove === null) {
                 continue;
             }
 
@@ -53,7 +61,20 @@ final class HiddenLayerRemover
             }
 
             $content = implode("\n", array_column($streams, 'content'));
-            $filtered = ContentStreamFilter::suppressPainting($content, $names);
+            $filtered = $names === [] ? $content : ContentStreamFilter::suppressPainting($content, $names);
+            $removedOutlines = 0;
+
+            if ($outlineToRemove !== null) {
+                $mediaBox = $page->getBoundary(PageBoundaries::MEDIA_BOX);
+                [$filtered, $removedOutlines] = ContentStreamFilter::removeStrokedRectangle(
+                    $filtered,
+                    $this->toPoints($outlineToRemove, $mediaBox->getLlx(), $mediaBox->getUry()),
+                );
+            }
+
+            if ($names === [] && $removedOutlines === 0) {
+                continue; // Nothing to change on this page.
+            }
 
             foreach ($streams as $index => $stream) {
                 // All of the page's content goes into its first stream; the rest are emptied.
@@ -62,6 +83,21 @@ final class HiddenLayerRemover
         }
 
         return $updates === [] ? $pdf : $this->appendUpdate($pdf, $parser, $updates);
+    }
+
+    /**
+     * A box in mm from the page's top-left corner, as [left, bottom, width,
+     * height] in PDF points (measured from the bottom-left corner).
+     *
+     * @param  array{x: float, y: float, size: float}  $box
+     * @return array{0: float, 1: float, 2: float, 3: float}
+     */
+    private function toPoints(array $box, float $pageLeft, float $pageTop): array
+    {
+        $pt = 72 / 25.4;
+        $size = $box['size'] * $pt;
+
+        return [$pageLeft + $box['x'] * $pt, $pageTop - $box['y'] * $pt - $size, $size, $size];
     }
 
     /**

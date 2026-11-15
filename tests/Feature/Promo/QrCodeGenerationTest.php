@@ -5,13 +5,15 @@ use App\Models\QrCode;
 use App\Services\QrCodeExporter;
 use App\Services\QrCodeGenerator;
 use setasign\Fpdi\Fpdi;
+use setasign\Fpdi\PdfParser\PdfParser;
 use setasign\Fpdi\PdfParser\StreamReader;
+use setasign\Fpdi\PdfReader\PdfReader;
 
-function generateCodes(int $spa = 200, int $shangriLa = 200): int
+function generateCodes(int $spa = 200, int $cinnamonLife = 200): int
 {
     return app(QrCodeGenerator::class)->generate([
         Gift::SpaCeylon->value => $spa,
-        Gift::ShangriLaDinner->value => $shangriLa,
+        Gift::CinnamonLifeDinner->value => $cinnamonLife,
     ]);
 }
 
@@ -20,13 +22,13 @@ it('generates one unique code per gift package and no codes for packages without
 
     expect(QrCode::count())->toBe(400)
         ->and(QrCode::where('gift', Gift::SpaCeylon)->count())->toBe(200)
-        ->and(QrCode::where('gift', Gift::ShangriLaDinner)->count())->toBe(200)
+        ->and(QrCode::where('gift', Gift::CinnamonLifeDinner)->count())->toBe(200)
         ->and(QrCode::distinct()->count('code'))->toBe(400)
         ->and(QrCode::distinct()->count('serial'))->toBe(400);
 });
 
 it('makes long random codes and sequential serials', function () {
-    generateCodes(spa: 10, shangriLa: 10);
+    generateCodes(spa: 10, cinnamonLife: 10);
 
     QrCode::all()->each(function (QrCode $qrCode) {
         expect($qrCode->code)->toMatch('/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{12}$/');
@@ -48,16 +50,16 @@ it('mixes the two gifts randomly across serial numbers', function () {
 });
 
 it('refuses to generate a second time, because codes are already printed', function () {
-    generateCodes(spa: 1, shangriLa: 1);
+    generateCodes(spa: 1, cinnamonLife: 1);
 
-    expect(fn () => generateCodes(spa: 1, shangriLa: 1))
+    expect(fn () => generateCodes(spa: 1, cinnamonLife: 1))
         ->toThrow(RuntimeException::class, 'already been generated');
 
     expect(QrCode::count())->toBe(2);
 });
 
-it('rejects zero or negative gift numbers', function (int $spa, int $shangriLa) {
-    expect(fn () => generateCodes(spa: $spa, shangriLa: $shangriLa))
+it('rejects zero or negative gift numbers', function (int $spa, int $cinnamonLife) {
+    expect(fn () => generateCodes(spa: $spa, cinnamonLife: $cinnamonLife))
         ->toThrow(InvalidArgumentException::class);
 
     expect(QrCode::count())->toBe(0);
@@ -67,19 +69,19 @@ it('rejects zero or negative gift numbers', function (int $spa, int $shangriLa) 
 ]);
 
 it('can be run from the command line', function () {
-    $this->artisan('app:generate-qr-codes', ['--spa-ceylon' => 3, '--shangri-la' => 4])
+    $this->artisan('app:generate-qr-codes', ['--spa-ceylon' => 3, '--cinnamon-life' => 4])
         ->expectsConfirmation('Generate these codes? This can only be done once.', 'yes')
         ->assertSuccessful();
 
     expect(QrCode::count())->toBe(7)
         ->and(QrCode::where('gift', Gift::SpaCeylon)->count())->toBe(3)
-        ->and(QrCode::where('gift', Gift::ShangriLaDinner)->count())->toBe(4);
+        ->and(QrCode::where('gift', Gift::CinnamonLifeDinner)->count())->toBe(4);
 });
 
 it('exports the gift codes plus one shared try-again QR, without saying which gift each code wins', function () {
     config(['promo.qr_base_url' => 'https://promo.example.com']);
     config(['promo.card.template' => '/nowhere/card.pdf']); // bare QR export; cards are tested below
-    generateCodes(spa: 2, shangriLa: 3);
+    generateCodes(spa: 2, cinnamonLife: 3);
 
     $path = app(QrCodeExporter::class)->toZip();
 
@@ -98,20 +100,20 @@ it('exports the gift codes plus one shared try-again QR, without saying which gi
     $rows = array_map(str_getcsv(...), array_filter(explode("\n", $csv)));
     $code = QrCode::where('serial', 'MM-0001')->value('code');
 
-    expect($rows[0])->toBe(['serial', 'code', 'url', 'svg_file'])
+    expect($rows[0])->toBe(['serial', 'code', 'url', 'svg_file', 'card_text'])
         ->and($rows)->toHaveCount(6)
-        ->and($rows[1])->toBe(['MM-0001', $code, "https://promo.example.com/r/{$code}", 'svg/MM-0001.svg'])
+        ->and($rows[1])->toBe(['MM-0001', $code, "https://promo.example.com/r/{$code}", 'svg/MM-0001.svg', "MM-{$code}"])
         ->and($svgCount)->toBe(5)
-        ->and($firstSvg)->toContain('<svg')
+        ->and($firstSvg)->toContain('<svg')->toContain('#451000') // chocolate brown, same as the cards
         ->and($tryAgainSvg)->toContain('<svg')
         ->and($readme)->toContain('https://promo.example.com/try-again')
         ->and($readme)->not->toContain('READY-TO-PRINT CARDS')
-        ->and(strtolower($csv))->not->toContain('spa')
-        ->not->toContain('shangri');
+        ->and(strtolower($csv))->not->toContain('spa_ceylon')->not->toContain('spa ceylon')
+        ->not->toContain('cinnamon');
 });
 
 it('includes print-ready cards on the artwork in the export', function () {
-    generateCodes(spa: 2, shangriLa: 3);
+    generateCodes(spa: 2, cinnamonLife: 3);
 
     $path = app(QrCodeExporter::class)->toZip();
 
@@ -129,6 +131,12 @@ it('includes print-ready cards on the artwork in the export', function () {
         ->and($pageCount($tryAgainCard))->toBe(1)
         ->and($readme)->toContain('READY-TO-PRINT CARDS')
         ->and($readme)->toContain('Page 1 = MM-0001');
+
+    // Each gift card shows its own code; page 1 is MM-0001.
+    $firstPage = (new PdfReader(new PdfParser(StreamReader::createByString($giftCards))))->getPage(1)->getContentStream();
+    $firstCode = QrCode::where('serial', 'MM-0001')->value('code');
+
+    expect($firstPage)->toContain("(MM-{$firstCode}) Tj");
 
     // No temporary card PDFs left behind.
     expect(glob(storage_path('app/private/cards-*.pdf')))->toBe([]);

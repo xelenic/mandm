@@ -5,8 +5,11 @@ namespace App\Services;
 use App\Models\QrCode;
 use App\Services\Print\QrCardRenderer;
 use BaconQrCode\Common\ErrorCorrectionLevel;
+use BaconQrCode\Renderer\Color\Cmyk;
+use BaconQrCode\Renderer\Color\Rgb;
 use BaconQrCode\Renderer\Image\SvgImageBackEnd;
 use BaconQrCode\Renderer\ImageRenderer;
+use BaconQrCode\Renderer\RendererStyle\Fill;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
 use BaconQrCode\Writer;
 use RuntimeException;
@@ -51,14 +54,14 @@ class QrCodeExporter
         }
 
         $csv = fopen('php://temp', 'r+');
-        fputcsv($csv, ['serial', 'code', 'url', 'svg_file'], escape: '');
+        fputcsv($csv, ['serial', 'code', 'url', 'svg_file', 'card_text'], escape: '');
 
         $writer = $this->writer();
 
         QrCode::query()->lazyById(500)->each(function (QrCode $qrCode) use ($zip, $csv, $writer): void {
             $file = "svg/{$qrCode->serial}.svg";
 
-            fputcsv($csv, [$qrCode->serial, $qrCode->code, $qrCode->url(), $file], escape: '');
+            fputcsv($csv, [$qrCode->serial, $qrCode->code, $qrCode->url(), $file, (string) $qrCode->cardText()], escape: '');
             $zip->addFromString($file, $writer->writeString($qrCode->url(), ecLevel: ErrorCorrectionLevel::Q()));
         });
 
@@ -88,15 +91,16 @@ class QrCodeExporter
      */
     private function renderCards(): array
     {
-        $giftUrls = (function () {
+        $giftCards = (function () {
             // Same order as codes.csv: page 1 is MM-0001, page 2 is MM-0002, ...
             foreach (QrCode::query()->lazyById(500) as $qrCode) {
-                yield $qrCode->url();
+                yield ['url' => $qrCode->url(), 'text' => $qrCode->cardText()];
             }
         })();
 
         return [
-            self::GIFT_CARDS_FILE => $this->cards->render($giftUrls, 'Gift cards'),
+            self::GIFT_CARDS_FILE => $this->cards->render($giftCards, 'Gift cards'),
+            // No code of its own, so no code text.
             self::TRY_AGAIN_CARD_FILE => $this->cards->render([QrCode::tryAgainUrl()], 'Try again card'),
         ];
     }
@@ -114,8 +118,11 @@ class QrCodeExporter
 
     private function writer(int $size = 512): Writer
     {
+        // Same colour as the printed cards, on white.
+        $fill = Fill::uniformColor(new Rgb(255, 255, 255), (new Cmyk(...config('promo.qr_color_cmyk')))->toRgb());
+
         // Margin 4 = the quiet zone the QR spec requires for reliable scanning.
-        return new Writer(new ImageRenderer(new RendererStyle($size, 4), new SvgImageBackEnd));
+        return new Writer(new ImageRenderer(new RendererStyle($size, 4, fill: $fill), new SvgImageBackEnd));
     }
 
     private function readme(bool $withCards): string
@@ -125,6 +132,7 @@ class QrCodeExporter
         $tryAgain = self::TRY_AGAIN_FILE;
         $giftCards = self::GIFT_CARDS_FILE;
         $tryAgainCard = self::TRY_AGAIN_CARD_FILE;
+        $ink = implode('/', config('promo.qr_color_cmyk'));
 
         $cards = $withCards ? <<<TXT
         READY-TO-PRINT CARDS (use these)
@@ -132,12 +140,14 @@ class QrCodeExporter
           {$giftCards}
              {$count} pages, one card per gift package, each with its OWN QR code.
              Page 1 = MM-0001, page 2 = MM-0002, ... (same order as codes.csv).
+             Each card also shows its code as text at the bottom right (card_text in codes.csv).
              Print every page exactly ONCE. Never print a gift card twice.
 
           {$tryAgainCard}
              1 page. Print this same card for EVERY package without a gift.
 
-          QR codes are vector art in 100% black (K only).
+          QR codes are vector art in chocolate brown, CMYK {$ink} (C/M/Y/K %).
+          Please keep this colour exactly; do not lighten it.
 
 
         TXT : '';
@@ -148,7 +158,7 @@ class QrCodeExporter
         {$cards}BARE QR IMAGES (only if you build the cards yourself)
 
           svg/        One unique QR image per gift package, named by serial (e.g. MM-0001.svg).
-          codes.csv   The same list as a table: serial, code, url, svg_file.
+          codes.csv   The same list as a table: serial, code, url, svg_file, card_text.
           {$tryAgain}  The one shared QR image for every package without a gift.
 
           Gift codes link to {$baseUrl}/r/<code>.

@@ -19,7 +19,7 @@ final class QrCardRenderer
 {
     private ?string $template = null;
 
-    public function __construct(private readonly HiddenLayerRemover $hiddenLayers) {}
+    public function __construct(private readonly ArtworkCleaner $artwork) {}
 
     public static function templateExists(): bool
     {
@@ -27,10 +27,11 @@ final class QrCardRenderer
     }
 
     /**
-     * @param  iterable<string>  $urls  One card is printed per URL, in this order.
+     * @param  iterable<string|array{url: string, text?: string|null}>  $cards  One card per item, in this order:
+     *                                                                          the URL for its QR code, plus optional text printed at the bottom right.
      * @return string Path to a temporary PDF file. The caller deletes it.
      */
-    public function render(iterable $urls, string $title): string
+    public function render(iterable $cards, string $title): string
     {
         $pdf = new QrCardDocument('P', 'mm');
         $pdf->SetTitle($title);
@@ -43,8 +44,13 @@ final class QrCardRenderer
         $size = $pdf->getTemplateSize($template);
         $box = config('promo.card.qr_box');
         $margin = (float) config('promo.card.qr_margin');
+        $color = config('promo.qr_color_cmyk');
+        $textStyle = config('promo.card.code_text');
+        $fontLoaded = false;
 
-        foreach ($urls as $url) {
+        foreach ($cards as $card) {
+            ['url' => $url, 'text' => $text] = is_string($card) ? ['url' => $card, 'text' => null] : $card + ['text' => null];
+
             $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
             $pdf->useTemplate($template, 0, 0, $size['width'], $size['height']);
 
@@ -52,7 +58,17 @@ final class QrCardRenderer
             $matrix = Encoder::encode($url, ErrorCorrectionLevel::Q())->getMatrix();
             $module = ($box['size'] - 2 * $margin) / $matrix->getWidth();
 
-            $pdf->qrCode($matrix, $box['x'] + $margin, $box['y'] + $margin, $module);
+            $pdf->qrCode($matrix, $box['x'] + $margin, $box['y'] + $margin, $module, $color);
+
+            if ($text !== null && $text !== '') {
+                if (! $fontLoaded) {
+                    $this->loadFont($pdf, $textStyle['font']);
+                    $fontLoaded = true;
+                }
+
+                $pdf->SetFont('CardCode', '', $textStyle['size']);
+                $pdf->rightAlignedText($text, $size['width'] - $textStyle['right'], $textStyle['baseline'], $color);
+            }
         }
 
         if ($pdf->PageNo() === 0) {
@@ -66,7 +82,20 @@ final class QrCardRenderer
     }
 
     /**
-     * The artwork PDF with its hidden layers kept hidden (loaded once).
+     * Register the FPDF font definition (.json, next to its .z font file) as "CardCode".
+     */
+    private function loadFont(QrCardDocument $pdf, string $definition): void
+    {
+        if (! is_file($definition)) {
+            throw new RuntimeException("Card font not found at [{$definition}]. Check promo.card.code_text.font.");
+        }
+
+        $pdf->AddFont('CardCode', '', basename($definition), dirname($definition));
+    }
+
+    /**
+     * The artwork PDF with its hidden layers kept hidden and, if configured,
+     * the QR box outline removed (loaded once).
      */
     private function template(): string
     {
@@ -80,6 +109,8 @@ final class QrCardRenderer
             throw new RuntimeException("Card artwork not found at [{$path}]. Check promo.card.template.");
         }
 
-        return $this->template = $this->hiddenLayers->apply(file_get_contents($path));
+        $outline = config('promo.card.remove_box_outline') ? config('promo.card.qr_box') : null;
+
+        return $this->template = $this->artwork->apply(file_get_contents($path), $outline);
     }
 }

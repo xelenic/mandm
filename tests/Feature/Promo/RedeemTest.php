@@ -67,7 +67,7 @@ describe('scanning a QR code', function () {
 
 describe('claiming a gift', function () {
     it('saves the claim and shows the reference', function () {
-        $qrCode = QrCode::factory()->forGift(Gift::ShangriLaDinner)->create();
+        $qrCode = QrCode::factory()->forGift(Gift::CinnamonLifeDinner)->create();
 
         $this->post("/r/{$qrCode->code}", validClaim())
             ->assertRedirect("/r/{$qrCode->code}");
@@ -76,7 +76,7 @@ describe('claiming a gift', function () {
 
         expect($claim)
             ->qr_code_id->toBe($qrCode->id)
-            ->gift->toBe(Gift::ShangriLaDinner)
+            ->gift->toBe(Gift::CinnamonLifeDinner)
             ->status->toBe(ClaimStatus::Pending)
             ->name->toBe('Nimal Perera')
             ->phone->toBe('+94771234567')
@@ -153,7 +153,7 @@ describe('claiming a gift', function () {
 
     it('allows the same person to claim several winning packages', function () {
         $first = QrCode::factory()->forGift(Gift::SpaCeylon)->create();
-        $second = QrCode::factory()->forGift(Gift::ShangriLaDinner)->create();
+        $second = QrCode::factory()->forGift(Gift::CinnamonLifeDinner)->create();
 
         $this->post("/r/{$first->code}", validClaim());
         $this->post("/r/{$second->code}", validClaim());
@@ -172,7 +172,7 @@ describe('claiming a gift', function () {
 
         $this->post("/r/{$qrCode->code}", validClaim([
             'status' => ClaimStatus::Collected->value,
-            'gift' => Gift::ShangriLaDinner->value,
+            'gift' => Gift::CinnamonLifeDinner->value,
         ]));
 
         expect(Claim::sole())

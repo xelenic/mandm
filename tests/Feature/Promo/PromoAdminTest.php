@@ -48,13 +48,13 @@ it('generates QR codes from the admin panel', function () {
         ->assertActionHidden('export')
         ->callAction('generate', data: [
             Gift::SpaCeylon->value => 5,
-            Gift::ShangriLaDinner->value => 6,
+            Gift::CinnamonLifeDinner->value => 6,
         ])
         ->assertNotified('11 gift QR codes generated');
 
     expect(QrCode::count())->toBe(11)
         ->and(QrCode::where('gift', Gift::SpaCeylon)->count())->toBe(5)
-        ->and(QrCode::where('gift', Gift::ShangriLaDinner)->count())->toBe(6);
+        ->and(QrCode::where('gift', Gift::CinnamonLifeDinner)->count())->toBe(6);
 
     // Once generated, the button disappears so codes can't be regenerated.
     Livewire::test(ListQrCodes::class)
@@ -77,7 +77,7 @@ it('downloads the print ZIP', function () {
 
 it('lists QR codes and can filter by gift', function () {
     $spa = QrCode::factory()->forGift(Gift::SpaCeylon)->count(2)->create();
-    $dinner = QrCode::factory()->forGift(Gift::ShangriLaDinner)->count(3)->create();
+    $dinner = QrCode::factory()->forGift(Gift::CinnamonLifeDinner)->count(3)->create();
 
     Livewire::test(ListQrCodes::class)
         ->assertCanSeeTableRecords($spa->merge($dinner))
@@ -139,7 +139,7 @@ it('downloads claims as CSV, defusing spreadsheet formulas', function () {
 });
 
 it('shows promo stats on the dashboard', function () {
-    QrCode::factory()->forGift(Gift::ShangriLaDinner)->count(3)->create(['scan_count' => 1]);
+    QrCode::factory()->forGift(Gift::CinnamonLifeDinner)->count(3)->create(['scan_count' => 1]);
     QrCode::factory()->forGift(Gift::SpaCeylon)->count(2)->create();
     Claim::factory()->create(['qr_code_id' => QrCode::factory()->forGift(Gift::SpaCeylon)]);
 
