@@ -4,7 +4,6 @@ use App\Enums\Gift;
 use App\Models\QrCode;
 use App\Services\QrCodeExporter;
 use App\Services\QrCodeGenerator;
-use setasign\Fpdi\Fpdi;
 use setasign\Fpdi\PdfParser\PdfParser;
 use setasign\Fpdi\PdfParser\StreamReader;
 use setasign\Fpdi\PdfReader\PdfReader;
@@ -104,7 +103,7 @@ it('exports the gift codes plus one shared try-again QR, without saying which gi
         ->and($rows)->toHaveCount(6)
         ->and($rows[1])->toBe(['MM-0001', $code, "https://promo.example.com/r/{$code}", 'svg/MM-0001.svg', "MM-{$code}"])
         ->and($svgCount)->toBe(5)
-        ->and($firstSvg)->toContain('<svg')->toContain('#451000') // chocolate brown, same as the cards
+        ->and($firstSvg)->toContain('<svg')->toContain('#461100') // same chocolate brown as the cards
         ->and($tryAgainSvg)->toContain('<svg')
         ->and($readme)->toContain('https://promo.example.com/try-again')
         ->and($readme)->not->toContain('READY-TO-PRINT CARDS')
@@ -112,34 +111,77 @@ it('exports the gift codes plus one shared try-again QR, without saying which gi
         ->not->toContain('cinnamon');
 });
 
-it('includes print-ready cards on the artwork in the export', function () {
-    generateCodes(spa: 2, cinnamonLife: 3);
-
-    $path = app(QrCodeExporter::class)->toZip();
-
+/** Every file in a ZIP, by name. */
+function zipFiles(string $path): array
+{
     $zip = new ZipArchive;
     $zip->open($path);
-    $giftCards = $zip->getFromName(QrCodeExporter::GIFT_CARDS_FILE);
-    $tryAgainCard = $zip->getFromName(QrCodeExporter::TRY_AGAIN_CARD_FILE);
-    $readme = $zip->getFromName('README.txt');
+    $files = [];
+
+    for ($i = 0; $i < $zip->numFiles; $i++) {
+        $files[$zip->getNameIndex($i)] = $zip->getFromIndex($i);
+    }
+
     $zip->close();
     unlink($path);
 
-    $pageCount = fn (string $pdf): int => (new Fpdi)->setSourceFile(StreamReader::createByString($pdf));
+    return $files;
+}
 
-    expect($pageCount($giftCards))->toBe(5)
-        ->and($pageCount($tryAgainCard))->toBe(1)
-        ->and($readme)->toContain('READY-TO-PRINT CARDS')
-        ->and($readme)->toContain('Page 1 = MM-0001');
+/** The code text printed on each page of a card PDF, in page order. */
+function cardTexts(string $pdf): array
+{
+    $reader = new PdfReader(new PdfParser(StreamReader::createByString($pdf)));
 
-    // Each gift card shows its own code; page 1 is MM-0001.
-    $firstPage = (new PdfReader(new PdfParser(StreamReader::createByString($giftCards))))->getPage(1)->getContentStream();
-    $firstCode = QrCode::where('serial', 'MM-0001')->value('code');
+    return array_map(function (int $page) use ($reader): ?string {
+        preg_match('/\((MM-[A-Z0-9]+)\) Tj/', $reader->getPage($page)->getContentStream(), $m);
 
-    expect($firstPage)->toContain("(MM-{$firstCode}) Tj");
+        return $m[1] ?? null;
+    }, range(1, $reader->getPageCount()));
+}
+
+it('puts each gift\'s cards in its own PDF, in serial order', function () {
+    generateCodes(spa: 2, cinnamonLife: 3);
+
+    $files = zipFiles(app(QrCodeExporter::class)->toZip());
+
+    $spaFile = QrCodeExporter::giftCardsFile(Gift::SpaCeylon);
+    $cinnamonFile = QrCodeExporter::giftCardsFile(Gift::CinnamonLifeDinner);
+    $expectedTexts = fn (Gift $gift) => QrCode::where('gift', $gift)->orderBy('id')->pluck('code')->map(fn ($code) => "MM-{$code}")->all();
+
+    expect($spaFile)->toBe('cards/spa-ceylon-gift-voucher-cards.pdf')
+        ->and($cinnamonFile)->toBe('cards/cinnamon-life-dinner-voucher-cards.pdf')
+        ->and(array_keys($files))->toContain($spaFile, $cinnamonFile, QrCodeExporter::TRY_AGAIN_CARD_FILE)
+        ->and(cardTexts($files[$spaFile]))->toBe($expectedTexts(Gift::SpaCeylon))
+        ->and(cardTexts($files[$cinnamonFile]))->toBe($expectedTexts(Gift::CinnamonLifeDinner))
+        ->and(cardTexts($files[QrCodeExporter::TRY_AGAIN_CARD_FILE]))->toBe([null]) // one card, no code text
+        ->and($files['README.txt'])->toContain('READY-TO-PRINT CARDS')
+        ->and($files['README.txt'])->toContain("{$spaFile}\n     2 pages: one card per Spa Ceylon Gift Voucher package.")
+        ->and($files['README.txt'])->toContain("{$cinnamonFile}\n     3 pages: one card per Cinnamon Life Dinner Voucher package.");
 
     // No temporary card PDFs left behind.
     expect(glob(storage_path('app/private/cards-*.pdf')))->toBe([]);
+})->skip(! is_file(__DIR__.'/../../../public/git_qr/56x85 mm - QR Card - Front - Generate AW.pdf'), 'Card artwork PDF is not in this checkout.');
+
+it('leaves out the PDF for a gift without any codes', function () {
+    generateCodes(spa: 3, cinnamonLife: 0);
+
+    $files = zipFiles(app(QrCodeExporter::class)->toZip());
+
+    expect(array_keys($files))->toContain(QrCodeExporter::giftCardsFile(Gift::SpaCeylon))
+        ->not->toContain(QrCodeExporter::giftCardsFile(Gift::CinnamonLifeDinner))
+        ->and($files['README.txt'])->not->toContain('Cinnamon');
+})->skip(! is_file(__DIR__.'/../../../public/git_qr/56x85 mm - QR Card - Front - Generate AW.pdf'), 'Card artwork PDF is not in this checkout.');
+
+it('cleans up if building the cards fails halfway', function () {
+    generateCodes(spa: 2, cinnamonLife: 2);
+    config(['promo.card.code_text.font' => '/nowhere/font.json']); // fails on the first gift card
+
+    expect(fn () => app(QrCodeExporter::class)->toZip())->toThrow(RuntimeException::class, 'Card font not found');
+
+    // Neither the finished card PDFs nor the half-written ZIP are left behind.
+    expect(glob(storage_path('app/private/cards-*.pdf')))->toBe([])
+        ->and(glob(storage_path('app/private/qr-export-*.zip')))->toBe([]);
 })->skip(! is_file(__DIR__.'/../../../public/git_qr/56x85 mm - QR Card - Front - Generate AW.pdf'), 'Card artwork PDF is not in this checkout.');
 
 it('points the shared try-again QR at the try-again page', function () {

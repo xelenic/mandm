@@ -44,7 +44,7 @@ final class QrCardRenderer
         $size = $pdf->getTemplateSize($template);
         $box = config('promo.card.qr_box');
         $margin = (float) config('promo.card.qr_margin');
-        $color = config('promo.qr_color_cmyk');
+        $color = (string) config('promo.qr_color');
         $textStyle = config('promo.card.code_text');
         $fontLoaded = false;
 

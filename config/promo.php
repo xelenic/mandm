@@ -60,14 +60,15 @@ return [
     | QR code colour
     |--------------------------------------------------------------------------
     |
-    | CMYK percentages: cyan, magenta, yellow, black. The default is the
-    | chocolate brown used in the card artwork (RGB #461000). It is mostly
-    | black ink, so the code stays sharp in print. Keep it dark: scanners
-    | need strong contrast against the white background.
+    | Colour of the QR code and the code text on the cards (and of the bare
+    | QR images), as RGB hex. #461100 is a chocolate brown from the artwork.
+    | Note: the artwork's "* Terms & Conditions Apply" text is printed with
+    | the brand spot ink MI_BROWN_8_009 instead, so it can print slightly
+    | differently. Keep it dark: scanners need strong contrast against white.
     |
     */
 
-    'qr_color_cmyk' => array_map('intval', explode(',', (string) env('PROMO_QR_COLOR_CMYK', '0,77,100,73'))),
+    'qr_color' => env('PROMO_QR_COLOR', '#461100'),
 
     /*
     |--------------------------------------------------------------------------

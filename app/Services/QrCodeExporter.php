@@ -2,37 +2,48 @@
 
 namespace App\Services;
 
+use App\Enums\Gift;
 use App\Models\QrCode;
+use App\Services\Print\HexColor;
 use App\Services\Print\QrCardRenderer;
 use BaconQrCode\Common\ErrorCorrectionLevel;
-use BaconQrCode\Renderer\Color\Cmyk;
 use BaconQrCode\Renderer\Color\Rgb;
 use BaconQrCode\Renderer\Image\SvgImageBackEnd;
 use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\RendererStyle\Fill;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
 use BaconQrCode\Writer;
+use Illuminate\Support\Str;
 use RuntimeException;
+use Throwable;
 use ZipArchive;
 
 /**
  * Builds the file sent to the printer: a ZIP containing
- * - cards/gift-cards.pdf      print-ready cards on the designer's artwork, one per gift package,
+ * - cards/<gift>-cards.pdf    print-ready cards on the designer's artwork, one PDF per gift
+ *                             (e.g. cards/spa-ceylon-gift-voucher-cards.pdf), one card per package,
  * - cards/try-again-card.pdf  the single card for every package without a gift,
  * - svg/MM-0001.svg …         the bare QR images, for printers who build cards themselves,
  * - codes.csv                 the gift codes as a table,
  * - try-again.svg             the bare shared "try again" QR image,
  * - README.txt                printing instructions.
  *
- * It says nothing about which gift each code wins.
+ * Only the card PDFs (split by gift, as the client asked) show which gift
+ * a code wins; codes.csv and the SVG images say nothing about gifts.
  */
 class QrCodeExporter
 {
     public const TRY_AGAIN_FILE = 'try-again.svg';
 
-    public const GIFT_CARDS_FILE = 'cards/gift-cards.pdf';
-
     public const TRY_AGAIN_CARD_FILE = 'cards/try-again-card.pdf';
+
+    /**
+     * Name in the ZIP of one gift's card PDF, e.g. "cards/spa-ceylon-gift-voucher-cards.pdf".
+     */
+    public static function giftCardsFile(Gift $gift): string
+    {
+        return 'cards/'.Str::slug($gift->getLabel()).'-cards.pdf';
+    }
 
     public function __construct(private readonly QrCardRenderer $cards) {}
 
@@ -53,32 +64,47 @@ class QrCodeExporter
             throw new RuntimeException('Could not create the export file.');
         }
 
-        $csv = fopen('php://temp', 'r+');
-        fputcsv($csv, ['serial', 'code', 'url', 'svg_file', 'card_text'], escape: '');
+        try {
+            $csv = fopen('php://temp', 'r+');
+            fputcsv($csv, ['serial', 'code', 'url', 'svg_file', 'card_text'], escape: '');
 
-        $writer = $this->writer();
+            $writer = $this->writer();
 
-        QrCode::query()->lazyById(500)->each(function (QrCode $qrCode) use ($zip, $csv, $writer): void {
-            $file = "svg/{$qrCode->serial}.svg";
+            QrCode::query()->lazyById(500)->each(function (QrCode $qrCode) use ($zip, $csv, $writer): void {
+                $file = "svg/{$qrCode->serial}.svg";
 
-            fputcsv($csv, [$qrCode->serial, $qrCode->code, $qrCode->url(), $file, (string) $qrCode->cardText()], escape: '');
-            $zip->addFromString($file, $writer->writeString($qrCode->url(), ecLevel: ErrorCorrectionLevel::Q()));
-        });
+                fputcsv($csv, [$qrCode->serial, $qrCode->code, $qrCode->url(), $file, (string) $qrCode->cardText()], escape: '');
+                $zip->addFromString($file, $writer->writeString($qrCode->url(), ecLevel: ErrorCorrectionLevel::Q()));
+            });
 
-        rewind($csv);
-        $zip->addFromString('codes.csv', stream_get_contents($csv));
-        fclose($csv);
+            rewind($csv);
+            $zip->addFromString('codes.csv', stream_get_contents($csv));
+            fclose($csv);
 
-        $zip->addFromString(self::TRY_AGAIN_FILE, $writer->writeString(QrCode::tryAgainUrl(), ecLevel: ErrorCorrectionLevel::Q()));
+            $zip->addFromString(self::TRY_AGAIN_FILE, $writer->writeString(QrCode::tryAgainUrl(), ecLevel: ErrorCorrectionLevel::Q()));
 
-        $cardFiles = QrCardRenderer::templateExists() ? $this->renderCards() : [];
+            $cardFiles = QrCardRenderer::templateExists() ? $this->renderCards() : [];
 
-        foreach ($cardFiles as $name => $file) {
-            $zip->addFile($file, $name);
+            foreach ($cardFiles as $name => $file) {
+                $zip->addFile($file, $name);
+            }
+
+            $zip->addFromString('README.txt', $this->readme($cardFiles !== []));
+            $zip->close();
+        } catch (Throwable $e) {
+            // Don't leave a half-written ZIP behind.
+            try {
+                $zip->close();
+            } catch (Throwable) {
+                // Already closed or unwritable; the file check below is what matters.
+            }
+
+            if (is_file($path)) {
+                unlink($path);
+            }
+
+            throw $e;
         }
-
-        $zip->addFromString('README.txt', $this->readme($cardFiles !== []));
-        $zip->close();
 
         // ZipArchive reads added files on close(), so only delete them now.
         array_map(unlink(...), $cardFiles);
@@ -91,18 +117,46 @@ class QrCodeExporter
      */
     private function renderCards(): array
     {
-        $giftCards = (function () {
-            // Same order as codes.csv: page 1 is MM-0001, page 2 is MM-0002, ...
-            foreach (QrCode::query()->lazyById(500) as $qrCode) {
-                yield ['url' => $qrCode->url(), 'text' => $qrCode->cardText()];
-            }
-        })();
+        $files = [];
 
-        return [
-            self::GIFT_CARDS_FILE => $this->cards->render($giftCards, 'Gift cards'),
+        try {
+            foreach ($this->giftCounts() as $value => $count) {
+                $gift = Gift::from($value);
+
+                $cards = (function () use ($gift) {
+                    // In serial order, like codes.csv.
+                    foreach (QrCode::query()->where('gift', $gift)->lazyById(500) as $qrCode) {
+                        yield ['url' => $qrCode->url(), 'text' => $qrCode->cardText()];
+                    }
+                })();
+
+                $files[self::giftCardsFile($gift)] = $this->cards->render($cards, $gift->getLabel().' cards');
+            }
+
             // No code of its own, so no code text.
-            self::TRY_AGAIN_CARD_FILE => $this->cards->render([QrCode::tryAgainUrl()], 'Try again card'),
-        ];
+            $files[self::TRY_AGAIN_CARD_FILE] = $this->cards->render([QrCode::tryAgainUrl()], 'Try again card');
+        } catch (Throwable $e) {
+            array_map(unlink(...), $files); // don't leave half an export behind
+
+            throw $e;
+        }
+
+        return $files;
+    }
+
+    /**
+     * Number of codes per gift, for gifts that have any, in the order of the Gift enum.
+     *
+     * @return array<string, int> Gift value => count.
+     */
+    private function giftCounts(): array
+    {
+        $counts = QrCode::query()->toBase()->selectRaw('gift, count(*) as aggregate')->groupBy('gift')->pluck('aggregate', 'gift');
+
+        return collect(Gift::cases())
+            ->mapWithKeys(fn (Gift $gift): array => [$gift->value => (int) ($counts[$gift->value] ?? 0)])
+            ->filter()
+            ->all();
     }
 
     /**
@@ -119,7 +173,7 @@ class QrCodeExporter
     private function writer(int $size = 512): Writer
     {
         // Same colour as the printed cards, on white.
-        $fill = Fill::uniformColor(new Rgb(255, 255, 255), (new Cmyk(...config('promo.qr_color_cmyk')))->toRgb());
+        $fill = Fill::uniformColor(new Rgb(255, 255, 255), new Rgb(...HexColor::toRgb((string) config('promo.qr_color'))));
 
         // Margin 4 = the quiet zone the QR spec requires for reliable scanning.
         return new Writer(new ImageRenderer(new RendererStyle($size, 4, fill: $fill), new SvgImageBackEnd));
@@ -130,23 +184,29 @@ class QrCodeExporter
         $count = QrCode::query()->count();
         $baseUrl = rtrim((string) config('promo.qr_base_url'), '/');
         $tryAgain = self::TRY_AGAIN_FILE;
-        $giftCards = self::GIFT_CARDS_FILE;
         $tryAgainCard = self::TRY_AGAIN_CARD_FILE;
-        $ink = implode('/', config('promo.qr_color_cmyk'));
+        $color = strtoupper((string) config('promo.qr_color'));
+
+        $giftFiles = '';
+
+        foreach ($this->giftCounts() as $value => $giftCount) {
+            $gift = Gift::from($value);
+            $giftFiles .= '  '.self::giftCardsFile($gift)."\n"
+                ."     {$giftCount} ".Str::plural('page', $giftCount).": one card per {$gift->getLabel()} package.\n\n";
+        }
 
         $cards = $withCards ? <<<TXT
         READY-TO-PRINT CARDS (use these)
 
-          {$giftCards}
-             {$count} pages, one card per gift package, each with its OWN QR code.
-             Page 1 = MM-0001, page 2 = MM-0002, ... (same order as codes.csv).
-             Each card also shows its code as text at the bottom right (card_text in codes.csv).
-             Print every page exactly ONCE. Never print a gift card twice.
+        {$giftFiles}  Every gift card has its OWN QR code, and shows its code as text at the
+          bottom right (card_text in codes.csv). Within each file, cards are in serial
+          order. All {$count} gift cards together match the {$count} rows of codes.csv.
+          Print every page exactly ONCE. Never print a gift card twice.
 
           {$tryAgainCard}
              1 page. Print this same card for EVERY package without a gift.
 
-          QR codes are vector art in chocolate brown, CMYK {$ink} (C/M/Y/K %).
+          QR codes and code text are vector art in chocolate brown {$color} (RGB).
           Please keep this colour exactly; do not lighten it.
 
 

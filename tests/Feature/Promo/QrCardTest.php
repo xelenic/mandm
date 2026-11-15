@@ -78,9 +78,9 @@ describe('rendering QR cards', function () {
         $content = pageContent(file_get_contents($path));
         unlink($path);
 
-        // The QR code is the block of rectangles drawn in the CMYK chocolate brown (0/77/100/73).
-        expect($content)->toContain('0.00 0.77 1.00 0.73 k');
-        $qr = substr($content, strpos($content, '0.00 0.77 1.00 0.73 k'));
+        // The QR code is the block of rectangles drawn in #461100.
+        expect($content)->toContain('0.275 0.067 0.000 rg');
+        $qr = substr($content, strpos($content, '0.275 0.067 0.000 rg'));
         preg_match_all('/([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+) re/', $qr, $m, PREG_SET_ORDER);
 
         $left = min(array_map(fn ($r) => (float) $r[1], $m));
@@ -133,7 +133,7 @@ describe('rendering QR cards', function () {
         unlink($path);
 
         expect($pdf)->toMatch('#/BaseFont /([A-Z]{6}\+)?StintUltraCondensed-Regular#')  // the font is embedded
-            ->and($content)->toMatch('/0\.00 0\.77 1\.00 0\.73 k BT [\d.]+ [\d.]+ Td \(MM-QNTU8RJF7YCH\) Tj ET/');
+            ->and($content)->toMatch('/0\.275 0\.067 0\.000 rg BT [\d.]+ [\d.]+ Td \(MM-QNTU8RJF7YCH\) Tj ET/');
 
         preg_match('/BT ([\d.]+) ([\d.]+) Td \(MM-QNTU8RJF7YCH\)/', $content, $m);
 

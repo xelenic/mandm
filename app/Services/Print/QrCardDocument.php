@@ -13,16 +13,15 @@ final class QrCardDocument extends Fpdi
     /**
      * Draw a QR code with its top-left module at ($x, $y), in the document's units.
      *
-     * The whole code is one filled path in the given CMYK colour, set
-     * directly in CMYK so the printer gets exactly these ink values. Each
+     * The whole code is one filled path in the given colour. Each
      * horizontal run of dark modules is one rectangle, so there are no
      * hairline gaps inside the code.
      *
-     * @param  array{0: int, 1: int, 2: int, 3: int}  $cmyk  Ink percentages: cyan, magenta, yellow, black.
+     * @param  string  $color  Hex colour, e.g. "#461100".
      */
-    public function qrCode(ByteMatrix $matrix, float $x, float $y, float $moduleSize, array $cmyk = [0, 0, 0, 100]): void
+    public function qrCode(ByteMatrix $matrix, float $x, float $y, float $moduleSize, string $color = '#000000'): void
     {
-        $operators = ['q', self::cmykFill($cmyk)];
+        $operators = ['q', self::rgbFill($color)];
         $size = $matrix->getWidth();
 
         for ($row = 0; $row < $size; $row++) {
@@ -62,13 +61,13 @@ final class QrCardDocument extends Fpdi
      * Write one line of text in the current font, ending at $right (distance
      * from the page's left edge) on the given baseline, in the document's units.
      *
-     * @param  array{0: int, 1: int, 2: int, 3: int}  $cmyk  Ink percentages: cyan, magenta, yellow, black.
+     * @param  string  $color  Hex colour, e.g. "#461100".
      */
-    public function rightAlignedText(string $text, float $right, float $baseline, array $cmyk): void
+    public function rightAlignedText(string $text, float $right, float $baseline, string $color): void
     {
         $this->_out(sprintf(
             'q %s BT %.4F %.4F Td (%s) Tj ET Q',
-            self::cmykFill($cmyk),
+            self::rgbFill($color),
             ($right - $this->GetStringWidth($text)) * $this->k,
             ($this->h - $baseline) * $this->k,
             $this->_escape($text),
@@ -76,10 +75,11 @@ final class QrCardDocument extends Fpdi
     }
 
     /**
-     * @param  array{0: int, 1: int, 2: int, 3: int}  $cmyk
+     * PDF fill-colour operator for a hex colour, in RGB like the artwork's own
+     * text (e.g. #461100 → "0.275 0.067 0.000 rg").
      */
-    private static function cmykFill(array $cmyk): string
+    private static function rgbFill(string $color): string
     {
-        return vsprintf('%.2F %.2F %.2F %.2F k', array_map(fn (int $ink): float => $ink / 100, $cmyk));
+        return vsprintf('%.3F %.3F %.3F rg', array_map(fn (int $channel): float => $channel / 255, HexColor::toRgb($color)));
     }
 }

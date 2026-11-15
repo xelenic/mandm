@@ -1,6 +1,7 @@
 <?php
 
 use App\Services\Print\ContentStreamFilter;
+use App\Services\Print\HexColor;
 
 /** Collapse whitespace so tests compare instructions, not formatting. */
 function ops(string $content): string
@@ -50,6 +51,12 @@ it('is not confused by operator names inside strings', function () {
 
     expect(ops(ContentStreamFilter::suppressPainting($content, ['MC1'])))
         ->toBe('/OC /MC1 BDC BT ET EMC BT (EMC (nested) f) Tj ET');
+});
+
+it('reads hex colours', function () {
+    expect(HexColor::toRgb('#461100'))->toBe([70, 17, 0])
+        ->and(HexColor::toRgb('461100'))->toBe([70, 17, 0])
+        ->and(fn () => HexColor::toRgb('brown'))->toThrow(InvalidArgumentException::class, 'Use a hex colour like #461100');
 });
 
 describe('removing a stroked rectangle', function () {

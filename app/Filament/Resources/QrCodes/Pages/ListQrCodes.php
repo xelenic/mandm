@@ -169,8 +169,9 @@ class ListQrCodes extends ListRecords
     {
         $baseUrl = rtrim((string) config('promo.qr_base_url'), '/');
 
-        $message = 'You get a ZIP with print-ready cards on your card artwork (one gift card per gift package, '
-            .'plus one try-again card for every package without a gift), the bare QR images and a CSV list. '
+        $message = 'You get a ZIP with print-ready cards on your card artwork: a separate PDF for each gift '
+            .'(one card per gift package), plus one try-again card for every package without a gift. '
+            .'It also has the bare QR images and a CSV list. '
             .'Gift codes link to '.$baseUrl.'/r/… and the try-again code to '.$baseUrl.'/try-again. '
             .'Check this is your live website address: it can\'t be changed after printing.';
 
