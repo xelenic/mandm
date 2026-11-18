@@ -62,6 +62,24 @@ it('stops anyone trying codes in bulk', function () {
     $this->post('/find', ['code' => 'MM-QNTU8RJF7YCH'])->assertTooManyRequests();
 });
 
+it('opens the try-again page for the code printed on every no-gift card', function (string $typed) {
+    $this->from('/')
+        ->post('/find', ['code' => $typed])
+        ->assertRedirect('/try-again');
+})->with([
+    'as printed' => ['MM-M3RRYXM4S'],
+    'without the prefix' => ['M3RRYXM4S'],
+    'lower case with spaces' => ['mm m3rry xm4s'],
+]);
+
+it('prints MM-M3RRYXM4S on the try-again card, unless code text is switched off', function () {
+    expect(QrCode::tryAgainCardText())->toBe('MM-M3RRYXM4S');
+
+    config(['promo.card.code_text.enabled' => false]);
+
+    expect(QrCode::tryAgainCardText())->toBeNull();
+});
+
 it('links to the code search from the "code not found" page', function () {
     $this->get('/r/NOTAREALCODE')
         ->assertNotFound()

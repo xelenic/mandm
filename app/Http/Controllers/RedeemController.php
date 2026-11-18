@@ -60,6 +60,11 @@ class RedeemController extends Controller
             ['code.required' => 'Please enter the code printed on your card.'],
         );
 
+        // The code printed on every no-gift card.
+        if (QrCode::isTypedTryAgainCode($request->string('code'))) {
+            return redirect()->route('redeem.try-again');
+        }
+
         $qrCode = QrCode::findTyped($request->string('code'));
 
         if ($qrCode === null) {

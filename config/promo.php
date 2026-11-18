@@ -107,11 +107,14 @@ return [
 
         // Each gift card's code, printed at the bottom right (e.g. "MM-QNTU8RJF7YCH")
         // in the QR colour. It mirrors the "* Terms & Conditions Apply" text at the
-        // bottom left: same baseline, same distance from the edge. The try-again
-        // card has no code of its own, so it gets no text.
+        // bottom left: same baseline, same distance from the edge.
         'code_text' => [
             'enabled' => env('PROMO_CARD_CODE_TEXT', true),
             'prefix' => 'MM-',
+            // Printed on the shared try-again card (with the prefix: "MM-M3RRYXM4S").
+            // Typing it in the home page search opens the try-again page. Keep it a
+            // different length from gift codes (12 characters) so they never clash.
+            'try_again_code' => env('PROMO_TRY_AGAIN_CODE', 'M3RRYXM4S'),
             // FPDF font definition made from public/StintUltraCondensed-Regular.ttf.
             // For another font: cd resources/fonts && php ../../vendor/setasign/fpdf/makefont/makefont.php /path/to/Font.ttf
             'font' => resource_path('fonts/StintUltraCondensed-Regular.json'),

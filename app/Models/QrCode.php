@@ -57,22 +57,64 @@ class QrCode extends Model
      */
     public static function findTyped(string $input): ?self
     {
-        $code = strtoupper((string) preg_replace('/[\s\-_.]+/', '', $input));
+        $candidates = self::typedCandidates($input);
 
-        if ($code === '') {
+        // All real codes have the same length, so at most one candidate can match.
+        return $candidates === [] ? null : static::query()->whereIn('code', $candidates)->first();
+    }
+
+    /**
+     * Whether a person typed the code printed on the shared try-again card.
+     */
+    public static function isTypedTryAgainCode(string $input): bool
+    {
+        $code = self::normalize((string) config('promo.card.code_text.try_again_code'));
+
+        return $code !== '' && in_array($code, self::typedCandidates($input), true);
+    }
+
+    /**
+     * The text printed on the shared try-again card, e.g. "MM-M3RRYXM4S",
+     * or null when printing codes is switched off.
+     */
+    public static function tryAgainCardText(): ?string
+    {
+        $code = (string) config('promo.card.code_text.try_again_code');
+
+        if (! config('promo.card.code_text.enabled') || $code === '') {
             return null;
         }
 
-        // Also try without the printed prefix. All real codes have the same
-        // length, so at most one of these can match.
-        $prefix = strtoupper(str_replace('-', '', (string) config('promo.card.code_text.prefix')));
+        return config('promo.card.code_text.prefix').$code;
+    }
+
+    /**
+     * What a typed code could be: as typed, and without the printed prefix.
+     *
+     * @return list<string>
+     */
+    private static function typedCandidates(string $input): array
+    {
+        $code = self::normalize($input);
+
+        if ($code === '') {
+            return [];
+        }
+
+        $prefix = self::normalize((string) config('promo.card.code_text.prefix'));
         $candidates = [$code];
 
         if ($prefix !== '' && str_starts_with($code, $prefix)) {
             $candidates[] = substr($code, strlen($prefix));
         }
 
-        return static::query()->whereIn('code', $candidates)->first();
+        return $candidates;
+    }
+
+    /** Upper case, without spaces, dashes, underscores or dots. */
+    private static function normalize(string $value): string
+    {
+        return strtoupper((string) preg_replace('/[\s\-_.]+/', '', $value));
     }
 
     /**

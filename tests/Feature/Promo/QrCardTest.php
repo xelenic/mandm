@@ -147,7 +147,7 @@ describe('rendering QR cards', function () {
             ->and(round((float) $m[2], 1))->toBe(round((85 - 82.81) * $mm, 1));
     });
 
-    it('prints no text on cards without any, like the try-again card', function () {
+    it('prints no text on cards without any', function () {
         $path = app(QrCardRenderer::class)->render(['https://promo.example.com/try-again'], 'Card');
         $pdf = file_get_contents($path);
         unlink($path);

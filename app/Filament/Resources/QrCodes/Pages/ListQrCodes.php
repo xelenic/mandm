@@ -91,6 +91,7 @@ class ListQrCodes extends ListRecords
             ->modalContent(fn () => view('filament.qr-code-preview', [
                 'url' => QrCode::tryAgainUrl(),
                 'svg' => app(QrCodeExporter::class)->svg(QrCode::tryAgainUrl()),
+                'note' => QrCode::tryAgainCardText() === null ? null : 'Printed at the bottom right of the card: '.QrCode::tryAgainCardText(),
             ]))
             ->modalSubmitAction(false)
             ->modalCancelActionLabel('Close')

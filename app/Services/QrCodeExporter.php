@@ -133,8 +133,10 @@ class QrCodeExporter
                 $files[self::giftCardsFile($gift)] = $this->cards->render($cards, $gift->getLabel().' cards');
             }
 
-            // No code of its own, so no code text.
-            $files[self::TRY_AGAIN_CARD_FILE] = $this->cards->render([QrCode::tryAgainUrl()], 'Try again card');
+            $files[self::TRY_AGAIN_CARD_FILE] = $this->cards->render(
+                [['url' => QrCode::tryAgainUrl(), 'text' => QrCode::tryAgainCardText()]],
+                'Try again card',
+            );
         } catch (Throwable $e) {
             array_map(unlink(...), $files); // don't leave half an export behind
 
@@ -186,6 +188,9 @@ class QrCodeExporter
         $tryAgain = self::TRY_AGAIN_FILE;
         $tryAgainCard = self::TRY_AGAIN_CARD_FILE;
         $color = strtoupper((string) config('promo.qr_color'));
+        $tryAgainText = QrCode::tryAgainCardText() === null
+            ? ''
+            : "\n     It shows the code ".QrCode::tryAgainCardText().' at the bottom right (the same on every copy).';
 
         $giftFiles = '';
 
@@ -204,7 +209,7 @@ class QrCodeExporter
           Print every page exactly ONCE. Never print a gift card twice.
 
           {$tryAgainCard}
-             1 page. Print this same card for EVERY package without a gift.
+             1 page. Print this same card for EVERY package without a gift.{$tryAgainText}
 
           QR codes and code text are vector art in chocolate brown {$color} (RGB).
           Please keep this colour exactly; do not lighten it.

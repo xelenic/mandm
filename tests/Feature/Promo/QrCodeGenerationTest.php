@@ -154,7 +154,7 @@ it('puts each gift\'s cards in its own PDF, in serial order', function () {
         ->and(array_keys($files))->toContain($spaFile, $cinnamonFile, QrCodeExporter::TRY_AGAIN_CARD_FILE)
         ->and(cardTexts($files[$spaFile]))->toBe($expectedTexts(Gift::SpaCeylon))
         ->and(cardTexts($files[$cinnamonFile]))->toBe($expectedTexts(Gift::CinnamonLifeDinner))
-        ->and(cardTexts($files[QrCodeExporter::TRY_AGAIN_CARD_FILE]))->toBe([null]) // one card, no code text
+        ->and(cardTexts($files[QrCodeExporter::TRY_AGAIN_CARD_FILE]))->toBe(['MM-M3RRYXM4S']) // one card, the shared code
         ->and($files['README.txt'])->toContain('READY-TO-PRINT CARDS')
         ->and($files['README.txt'])->toContain("{$spaFile}\n     2 pages: one card per Spa Ceylon Gift Voucher package.")
         ->and($files['README.txt'])->toContain("{$cinnamonFile}\n     3 pages: one card per Cinnamon Life Dinner Voucher package.");
