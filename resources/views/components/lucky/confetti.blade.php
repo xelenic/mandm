@@ -13,7 +13,7 @@
         <i style="
             --x: {{ ($i * 37 + 5) % 100 }}%;
             --c: {{ $colors[$i % count($colors)] }};
-            --delay: {{ number_format(($i * 0.07) % 1.1, 2) }}s;
+            --delay: {{ number_format(fmod($i * 0.07, 1.1), 2) }}s;
             --d: {{ number_format(2.6 + ($i % 5) * 0.35, 2) }}s;
             --drift: {{ (($i * 53) % 21) - 10 }}cqw;
             --spin: {{ (($i % 2) ? 1 : -1) * (360 + ($i * 47) % 540) }}deg;
