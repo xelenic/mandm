@@ -23,7 +23,7 @@ class ClaimGift
     private const REFERENCE_ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
 
     /**
-     * @param  array{name: string, phone: string, email: string, nic: string}  $details
+     * @param  array{name: string, phone: string, email: ?string, nic: ?string}  $details
      *
      * @throws GiftAlreadyClaimed
      */

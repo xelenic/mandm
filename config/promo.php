@@ -11,7 +11,10 @@ return [
     |
     */
 
-    'name' => env('PROMO_NAME', 'M&M Christmas Gift'),
+    'name' => env('PROMO_NAME', "M&M's Christmas Lucky Draw"),
+
+    // Footer on every lucky draw screen.
+    'copyright' => env('PROMO_COPYRIGHT', '© 2026 Mars or Affiliates'),
 
     /*
     |--------------------------------------------------------------------------

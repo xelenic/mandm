@@ -19,13 +19,24 @@ enum Gift: string implements HasColor, HasLabel
     }
 
     /**
-     * Short line shown to the winner under the gift name.
+     * The prize as winners see it, from the lucky draw design.
      */
-    public function tagline(): string
+    public function prizeTitle(): string
     {
         return match ($this) {
-            self::SpaCeylon => 'Treat yourself to a relaxing Spa Ceylon experience.',
-            self::CinnamonLifeDinner => 'Enjoy a festive dinner at Cinnamon Life.',
+            self::SpaCeylon => 'Rs. 3,000 Spa Ceylon Gift Certificate',
+            self::CinnamonLifeDinner => 'Rs. 10,300 Cinnamon Life Gift Voucher',
+        };
+    }
+
+    /**
+     * The "Congratulations!" card in public/images/lucky-draw (without ".webp").
+     */
+    public function prizeImage(): string
+    {
+        return match ($this) {
+            self::SpaCeylon => 'prize-spa-ceylon',
+            self::CinnamonLifeDinner => 'prize-cinnamon-life',
         };
     }
 

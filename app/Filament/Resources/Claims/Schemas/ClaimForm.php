@@ -52,13 +52,12 @@ class ClaimForm
                             ->tel()
                             ->required()
                             ->maxLength(20),
+                        // Not asked on the lucky draw form; can be added after contacting the winner.
                         TextInput::make('email')
                             ->email()
-                            ->required()
                             ->maxLength(255),
                         TextInput::make('nic')
                             ->label('NIC')
-                            ->required()
                             ->maxLength(12),
                     ]),
             ]);
