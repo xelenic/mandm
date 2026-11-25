@@ -2,7 +2,7 @@
 <x-layouts.lucky-draw background="menu">
     <div class="mt-[1cqw] animate-rise-in [animation-delay:0.25s]">
         <img
-            src="{{ asset('images/lucky-draw/crew.webp') }}"
+            src="{{ \App\Support\LuckyDrawImage::url('crew') }}"
             alt=""
             width="1018"
             height="255"

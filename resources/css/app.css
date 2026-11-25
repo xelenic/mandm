@@ -1,13 +1,24 @@
 @import 'tailwindcss';
-@import '@fontsource/coustard/latin-900.css';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
-/* Body text of the lucky draw screens (same font as the code text on the printed cards). */
+/* The lucky draw screens use this font for all text. Only the Condensed Light
+   weight is provided, so it is declared as 300 and used for every weight. */
 @font-face {
-    font-family: 'Stint Ultra Condensed';
-    src: url('../fonts/StintUltraCondensed-Regular.ttf') format('truetype');
+    font-family: 'All Together Sans Cn';
+    src: url('../fonts/AllTogetherSans-CnLight.otf') format('opentype');
+    font-weight: 300;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* Page headings on the lucky draw screens. */
+@font-face {
+    font-family: 'All Together Serif Cn';
+    src: url('../fonts/AllTogetherSerif-CnBold.otf') format('opentype');
+    font-weight: 700;
+    font-style: normal;
     font-display: swap;
 }
 
@@ -16,8 +27,9 @@
         'Segoe UI Symbol', 'Noto Color Emoji';
 
     /* Lucky draw design */
-    --font-heading: 'Coustard', Georgia, 'Times New Roman', serif;
-    --font-condensed: 'Stint Ultra Condensed', 'Arial Narrow', Georgia, serif;
+    --font-heading: 'All Together Sans Cn', 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif;
+    --font-condensed: 'All Together Sans Cn', 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif;
+    --font-title: 'All Together Serif Cn', Georgia, 'Times New Roman', serif;
 
     --color-cocoa: #461100;
     --color-berry: #b3121a;
@@ -203,6 +215,33 @@
     width: 1.2em;
     text-align: left;
     animation: lucky-dots 1.2s steps(1) infinite;
+}
+
+/* Scrolling text inside a panel (Terms & Conditions). The panel fits on the
+   screen between the logo and the snow; only the text scrolls. The edges fade
+   to hint there is more to read, with a thin gold scrollbar. */
+.lucky-scroll {
+    /* Screen height minus the logo, the panel's title and button, and the space
+       kept clear above the gifts at the bottom; never shorter than ~8 lines. */
+    height: max(12rem, calc(100svh - 150cqw));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 3cqw, #000 calc(100% - 9cqw), transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 3cqw, #000 calc(100% - 9cqw), transparent 100%);
+    scrollbar-width: thin;
+    scrollbar-color: #c8902b transparent;
+}
+.lucky-scroll::-webkit-scrollbar {
+    width: 1.4cqw;
+}
+.lucky-scroll::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background: #c8902b;
+}
+.lucky-scroll:focus-visible {
+    outline: 0.6cqw solid rgba(226, 174, 60, 0.6);
+    outline-offset: 0.8cqw;
+    border-radius: 2cqw;
 }
 
 /* Respect "reduce motion": everything appears in place, nothing moves. */

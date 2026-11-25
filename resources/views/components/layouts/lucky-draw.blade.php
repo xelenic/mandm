@@ -5,7 +5,7 @@
 ])
 
 @php
-    $backgroundUrl = asset("images/lucky-draw/bg-{$background}.webp");
+    $backgroundUrl = \App\Support\LuckyDrawImage::url("bg-{$background}");
 @endphp
 
 <!DOCTYPE html>
@@ -20,7 +20,7 @@
         <title>{{ $title ? $title.' · ' : '' }}{{ config('promo.name') }}</title>
 
         <link rel="preload" as="image" href="{{ $backgroundUrl }}">
-        <link rel="preload" as="image" href="{{ asset('images/lucky-draw/logo.webp') }}">
+        <link rel="preload" as="image" href="{{ \App\Support\LuckyDrawImage::url('logo') }}">
         @vite(['resources/css/app.css'])
     </head>
     {{-- Outside the phone-width column (tablets, desktop) the page stays a deep Christmas red. --}}
@@ -35,7 +35,7 @@
                 {{-- Drops in, then sways gently (two layers, so the two movements combine). --}}
                 <a href="{{ session('lucky_draw.menu', route('home')) }}" class="mx-auto block w-[52cqw] animate-drop-in transition-transform duration-300 hover:scale-[1.03] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white">
                     <img
-                        src="{{ asset('images/lucky-draw/logo.webp') }}"
+                        src="{{ \App\Support\LuckyDrawImage::url('logo') }}"
                         alt="M&amp;M's 2026 Christmas Lucky Draw"
                         width="659"
                         height="524"
@@ -48,7 +48,7 @@
                 {{ $slot }}
             </main>
 
-            <footer class="relative pb-[4cqw] text-center font-sans text-[3cqw] text-stone-700">
+            <footer class="relative pb-[4cqw] text-center text-[4cqw] text-stone-700">
                 {{ config('promo.copyright') }}
             </footer>
         </div>

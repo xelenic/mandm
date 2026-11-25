@@ -8,7 +8,7 @@
 --}}
 <x-layouts.lucky-draw :title="$title">
     <x-lucky.panel class="mt-[2cqw] animate-pop-in [animation-delay:0.2s]">
-        <h1 class="font-heading text-[7.6cqw] leading-[1.15] text-balance">{{ $title }}</h1>
+        <h1 class="font-title font-bold text-[6.6cqw] leading-[1.12] text-balance">{{ $title }}</h1>
         <x-lucky.divider />
 
         <div class="space-y-[3cqw] text-[5.8cqw] leading-snug text-berry">

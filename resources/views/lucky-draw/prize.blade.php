@@ -8,7 +8,7 @@
         <div class="absolute -inset-[4cqw] -z-10 animate-pulse rounded-[8cqw] bg-[radial-gradient(closest-side,rgba(255,214,102,0.55),transparent)]" aria-hidden="true"></div>
 
         <img
-            src="{{ asset('images/lucky-draw/'.$gift->prizeImage().'.webp') }}"
+            src="{{ \App\Support\LuckyDrawImage::url($gift->prizeImage()) }}"
             alt="Congratulations! You won a {{ $gift->prizeTitle() }}. Enter your contact details to claim your prize."
             width="910"
             height="1087"

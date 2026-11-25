@@ -2,10 +2,14 @@
 
 namespace App\Filament\Resources\QrCodes\Tables;
 
+use App\Actions\ResetClaim;
+use App\Enums\ClaimStatus;
 use App\Enums\Gift;
 use App\Models\QrCode;
 use App\Services\QrCodeExporter;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Textarea;
+use Filament\Notifications\Notification;
 use Filament\Support\Enums\FontFamily;
 use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
@@ -89,6 +93,61 @@ class QrCodesTable
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Close')
                     ->modalWidth(Width::Small),
+                self::resetClaimAction(),
             ]);
+    }
+
+    /**
+     * Undo the claim on this code (e.g. a test claim or a mistake), so it can
+     * be claimed again. Only shown for claimed codes; a reason is required.
+     */
+    private static function resetClaimAction(): Action
+    {
+        return Action::make('resetClaim')
+            ->label('Reset claim')
+            ->icon(Heroicon::OutlinedArrowUturnLeft)
+            ->color('danger')
+            ->visible(fn (QrCode $record): bool => $record->claim !== null)
+            ->authorize(fn (): bool => (bool) auth()->user()?->is_admin)
+            ->modalIcon(Heroicon::OutlinedExclamationTriangle)
+            ->modalIconColor('danger')
+            ->modalHeading(fn (QrCode $record): string => "Reset the claim on {$record->serial}?")
+            ->modalDescription(function (QrCode $record): string {
+                $claim = $record->claim;
+
+                $message = "Claim {$claim->reference} ({$claim->gift->getLabel()}) by {$claim->name}, "
+                    ."claimed on {$claim->created_at->format('j M Y, H:i')}, status: {$claim->status->getLabel()}. "
+                    .'Resetting permanently deletes this winner\'s details and clears the scan count, so the QR code is back to "Not scanned" '
+                    .'and can be claimed again by whoever scans it next.';
+
+                if (in_array($claim->status, [ClaimStatus::VoucherSent, ClaimStatus::Collected], true)) {
+                    $message .= ' WARNING: this winner\'s voucher has already been '
+                        .($claim->status === ClaimStatus::Collected ? 'collected' : 'sent')
+                        .'. Resetting means the same gift could be claimed twice.';
+                }
+
+                return $message;
+            })
+            ->schema([
+                Textarea::make('reason')
+                    ->label('Reason')
+                    ->placeholder('e.g. Test claim before launch')
+                    ->helperText('Recorded in the log with your name.')
+                    ->required()
+                    ->maxLength(500)
+                    ->rows(2),
+            ])
+            ->modalSubmitActionLabel('Reset claim')
+            ->action(function (QrCode $record, array $data): void {
+                $claim = app(ResetClaim::class)->handle($record, auth()->user(), $data['reason']);
+
+                Notification::make()
+                    ->success()
+                    ->title("Claim reset on {$record->serial}")
+                    ->body($claim
+                        ? "Claim {$claim->reference} was removed and the code is back to \"Not scanned\". It can be claimed again."
+                        : 'This QR code had no claim; its scan count was cleared.')
+                    ->send();
+            });
     }
 }

@@ -5,7 +5,7 @@
 --}}
 {{-- Typing a code adds a form (and maybe an error), so use the plain background there to keep text clear of the artwork. --}}
 <x-layouts.lucky-draw :background="$resultUrl ? 'draw' : 'panel'" title="Enter Lucky Draw">
-    <p class="mt-[3cqw] animate-rise-in text-center text-[7.4cqw] leading-tight text-white drop-shadow-[0_2px_3px_rgba(0,0,0,0.45)] [animation-delay:0.3s]">
+    <p class="mt-[3cqw] animate-rise-in text-center text-[6.3cqw] leading-tight text-white drop-shadow-[0_2px_3px_rgba(0,0,0,0.45)] [animation-delay:0.3s]">
         Enter for a chance to win a gift voucher.
     </p>
 
@@ -28,7 +28,7 @@
         >
             @csrf
 
-            <label for="code" class="text-center text-[5.6cqw] leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+            <label for="code" class="text-center text-[4.8cqw] leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
                 Type the code printed at the bottom right of your card
             </label>
             <input
@@ -43,7 +43,7 @@
                 required
                 @error('code') aria-invalid="true" aria-errormessage="code-error" @enderror
                 @class([
-                    'mt-[2cqw] w-[78cqw] rounded-full border-[0.6cqw] border-gold bg-cream px-[5cqw] py-[2.6cqw] text-center font-heading text-[4.3cqw] tracking-wide text-cocoa uppercase shadow-inner transition duration-200 placeholder:text-cocoa/35 focus:scale-[1.02] focus:ring-[1cqw] focus:ring-white/60 focus:outline-none',
+                    'mt-[2cqw] w-[78cqw] rounded-full border-[0.6cqw] border-gold bg-cream px-[5cqw] py-[2.6cqw] text-center font-heading text-[6.4cqw] tracking-wider text-cocoa uppercase shadow-inner transition duration-200 placeholder:text-cocoa/35 focus:scale-[1.02] focus:ring-[1cqw] focus:ring-white/60 focus:outline-none',
                     'animate-shake [animation-delay:0.5s]' => $errors->has('code'),
                 ])
             >
@@ -65,8 +65,8 @@
         {{-- "Drawing your entry…": a short moment of suspense before the result. --}}
         <div id="drawing" class="fixed inset-0 z-50 hidden flex-col items-center justify-center bg-[#5a0909]/85 backdrop-blur-sm" role="status" aria-live="polite">
             <div class="@container w-full max-w-[480px] text-center">
-                <img src="{{ asset('images/lucky-draw/logo.webp') }}" alt="" class="lucky-drawing-logo mx-auto h-auto w-[60cqw] drop-shadow-[0_0_6cqw_rgba(255,214,102,0.6)]">
-                <p class="lucky-drawing-text mt-[6cqw] font-heading text-[7cqw] text-white">Drawing your entry</p>
+                <img src="{{ \App\Support\LuckyDrawImage::url('logo') }}" alt="" class="lucky-drawing-logo mx-auto h-auto w-[60cqw] drop-shadow-[0_0_6cqw_rgba(255,214,102,0.6)]">
+                <p class="lucky-drawing-text mt-[6cqw] font-title font-bold text-[7.2cqw] text-white">Drawing your entry</p>
             </div>
         </div>
 

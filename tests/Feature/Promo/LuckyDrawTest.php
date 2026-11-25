@@ -6,6 +6,7 @@ use App\Enums\Gift;
 use App\Exceptions\GiftAlreadyClaimed;
 use App\Models\Claim;
 use App\Models\QrCode;
+use App\Support\LuckyDrawImage;
 
 beforeEach(function () {
     $this->withoutVite();
@@ -347,6 +348,37 @@ describe('other screens', function () {
         ['/terms', 'Terms &amp; Conditions'],
         ['/winners', 'Winners Gallery'],
     ]);
+
+    it('shows the full Terms & Conditions, with a tappable privacy link and enquiry number', function () {
+        $this->get('/terms')
+            ->assertOk()
+            ->assertSeeInOrder([
+                '1. Organiser and eligibility',
+                'Mars International India Private Limited',
+                '2. Campaign Period',
+                '01 December 2026',
+                '01 January 2027',
+                '3. How to Enter',
+                'Only one entry per card is permitted.',
+                '4. Results and Prize Claims',
+                'within seven working days of winner confirmation',
+                '5. Personal Information and Enquiries',
+            ], false)
+            ->assertSee('href="https://www.mars.com/privacy"', false)
+            ->assertSee('href="tel:+94706335650"', false)
+            ->assertSee('+94 70 63 35 650')
+            // The text scrolls inside the panel and can be scrolled with the keyboard.
+            ->assertSee('class="lucky-scroll w-full" tabindex="0" role="region" aria-label="Terms and Conditions text"', false);
+    });
+
+    it('versions image addresses, so a replaced image is never served from an old cache', function () {
+        $version = filemtime(public_path('images/lucky-draw/logo.webp'));
+
+        expect(LuckyDrawImage::url('logo'))->toEndWith("/images/lucky-draw/logo.webp?v={$version}")
+            ->and(LuckyDrawImage::url('no-such-image'))->toEndWith('/images/lucky-draw/no-such-image.webp');
+
+        $this->get('/')->assertSee("logo.webp?v={$version}", false);
+    });
 
     it('shows the footer and the logo on every screen', function () {
         $this->get('/')

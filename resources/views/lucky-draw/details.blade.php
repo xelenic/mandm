@@ -1,9 +1,9 @@
 {{-- Screen 5: the winner enters their contact details. --}}
 <x-layouts.lucky-draw title="Your details">
     <x-lucky.panel class="mt-[3cqw] animate-pop-in [animation-delay:0.2s]">
-        <h1 class="font-heading text-[5.6cqw] leading-tight">Review Your Details</h1>
+        <h1 class="font-title font-bold text-[5.5cqw] leading-tight">Review Your Details</h1>
         <x-lucky.divider />
-        <p class="text-[5.8cqw] leading-tight text-berry">Please check your details before submitting.</p>
+        <p class="text-[4.55cqw] leading-tight text-berry">Please check your details before submitting.</p>
 
         <form
             method="POST"
@@ -22,7 +22,7 @@
                 ] as [$field, $label, $type, $autocomplete, $placeholder])
                     <div>
                         <div class="grid grid-cols-[34%_1fr] items-center gap-[2cqw]">
-                            <label for="{{ $field }}" class="font-heading text-[3.6cqw] leading-tight text-[#8b1a12]">{{ $label }}</label>
+                            <label for="{{ $field }}" class="font-heading text-[5.2cqw] leading-tight text-[#8b1a12]">{{ $label }}</label>
                             <input
                                 id="{{ $field }}"
                                 name="{{ $field }}"
@@ -34,21 +34,21 @@
                                 required
                                 @error($field) aria-invalid="true" aria-errormessage="{{ $field }}-error" @enderror
                                 @class([
-                                    'w-full rounded-[2cqw] border-[0.35cqw] bg-white px-[2.5cqw] py-[1.6cqw] font-sans text-[4cqw] text-stone-900 shadow-inner transition duration-200 placeholder:text-stone-400 hover:border-gold focus:-translate-y-[0.3cqw] focus:shadow-[0_1cqw_2cqw_rgba(200,144,43,0.25)] focus:ring-[0.8cqw] focus:outline-none',
+                                    'w-full rounded-[2cqw] border-[0.35cqw] bg-white px-[2.5cqw] py-[1.2cqw] text-[5.4cqw] text-stone-900 shadow-inner transition duration-200 placeholder:text-stone-400 hover:border-gold focus:-translate-y-[0.3cqw] focus:shadow-[0_1cqw_2cqw_rgba(200,144,43,0.25)] focus:ring-[0.8cqw] focus:outline-none',
                                     'border-sand focus:border-gold focus:ring-gold/30' => ! $errors->has($field),
                                     'animate-shake border-berry focus:ring-berry/25 [animation-delay:0.6s]' => $errors->has($field),
                                 ])
                             >
                         </div>
                         @error($field)
-                            <p id="{{ $field }}-error" class="mt-[1cqw] text-right text-[4.6cqw] leading-tight text-berry">{{ $message }}</p>
+                            <p id="{{ $field }}-error" class="mt-[1cqw] text-right text-[4cqw] leading-tight text-berry">{{ $message }}</p>
                         @enderror
                     </div>
                 @endforeach
             </div>
 
             <div class="mt-[5cqw]">
-                <label class="flex items-start gap-[2.5cqw] text-[5cqw] leading-snug text-[#8b1a12]">
+                <label class="flex items-start gap-[2.5cqw] text-[4.1cqw] leading-snug text-[#8b1a12]">
                     <input
                         type="checkbox"
                         name="terms"
@@ -63,7 +63,7 @@
                     </span>
                 </label>
                 @error('terms')
-                    <p id="terms-error" class="mt-[1cqw] text-[4.6cqw] text-berry">{{ $message }}</p>
+                    <p id="terms-error" class="mt-[1cqw] text-[4cqw] text-berry">{{ $message }}</p>
                 @enderror
             </div>
 

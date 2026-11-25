@@ -11,7 +11,7 @@
 ])
 
 @php
-    $src = asset("images/lucky-draw/{$image}.webp");
+    $src = \App\Support\LuckyDrawImage::url($image);
 
     // Hover (on devices that can hover): lift, grow a little, brighten, gold shine sweeps across.
     // Tap / click: press in.

@@ -1,10 +1,10 @@
 {{-- Screen 7: cards without a gift. --}}
 <x-layouts.lucky-draw title="Thanks for joining in">
     <x-lucky.panel class="mt-[2cqw] animate-pop-in [animation-delay:0.2s]">
-        <h1 class="font-heading text-[8.4cqw] leading-[1.15]">Thanks for<br>joining in!</h1>
+        <h1 class="font-title font-bold text-[10cqw] leading-[1.08]">Thanks for<br>joining in!</h1>
 
         <img
-            src="{{ asset('images/lucky-draw/character-waving.webp') }}"
+            src="{{ \App\Support\LuckyDrawImage::url('character-waving') }}"
             alt=""
             width="451"
             height="448"

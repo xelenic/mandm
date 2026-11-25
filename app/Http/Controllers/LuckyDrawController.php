@@ -220,8 +220,8 @@ class LuckyDrawController extends Controller
 
     public function terms(Request $request): View
     {
-        return $this->message($request, 'Terms & Conditions', [
-            'The full campaign Terms & Conditions will be published here.',
+        return view('lucky-draw.terms', [
+            'menuUrl' => $request->session()->get(self::MENU, route('home')),
         ]);
     }
 
