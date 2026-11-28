@@ -12,7 +12,7 @@ namespace App\Support;
 final class LuckyDrawImage
 {
     /**
-     * @param  string  $name  File name without ".webp", e.g. "logo" or "btn-ok".
+     * @param  string  $name  File name without ".webp", e.g. "logo" or "crew".
      */
     public static function url(string $name): string
     {

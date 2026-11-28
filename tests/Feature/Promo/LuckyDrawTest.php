@@ -35,9 +35,10 @@ describe('gift card flow (screens 1 → 2 → 3/4 → 5 → 6 → 8)', function 
 
         $this->get("/r/{$qrCode->code}")
             ->assertOk()
-            ->assertSee('btn-claim-your-prize.webp')
+            ->assertSee('Claim your Prize')
             ->assertSee('href="'.route('lucky.draw', $qrCode->code).'"', false)
             ->assertSee('Campaign Details')
+            ->assertSee('How to Join') // the pop-up "Campaign Details" opens
             ->assertSee('Terms &amp; Conditions', false)
             ->assertSee('Winners Gallery');
     });
@@ -52,17 +53,17 @@ describe('gift card flow (screens 1 → 2 → 3/4 → 5 → 6 → 8)', function 
             ->assertSee('href="'.route('lucky.result', $qrCode->code).'"', false);
     });
 
-    it('reveals the right prize card', function (Gift $gift, string $image, string $title) {
+    it('reveals the right prize', function (Gift $gift, string $image, string $amount, string $name) {
         $qrCode = QrCode::factory()->forGift($gift)->create();
 
         $this->get("/r/{$qrCode->code}/result")
             ->assertOk()
             ->assertSee("{$image}.webp")
-            ->assertSee($title)
+            ->assertSeeInOrder(['Congrats!', 'You won a', $amount, $name])
             ->assertSee('href="'.route('lucky.details', $qrCode->code).'"', false);
     })->with([
-        [Gift::SpaCeylon, 'prize-spa-ceylon', 'Rs. 3,000 Spa Ceylon Gift Certificate'],
-        [Gift::CinnamonLifeDinner, 'prize-cinnamon-life', 'Rs. 10,300 Cinnamon Life Gift Voucher'],
+        [Gift::SpaCeylon, 'voucher-spa-ceylon', 'Rs. 3,000', 'Spa Ceylon Gift Certificate'],
+        [Gift::CinnamonLifeDinner, 'voucher-cinnamon-life', 'Rs. 10,300', 'Cinnamon Life Gift Voucher'],
     ]);
 
     it('records a scan when the card is opened', function () {
@@ -79,7 +80,7 @@ describe('gift card flow (screens 1 → 2 → 3/4 → 5 → 6 → 8)', function 
     it('accepts the code in lower case', function () {
         $qrCode = QrCode::factory()->create();
 
-        $this->get('/r/'.strtolower($qrCode->code).'/result')->assertOk()->assertSee('prize-');
+        $this->get('/r/'.strtolower($qrCode->code).'/result')->assertOk()->assertSee('Congrats!');
     });
 
     it('lets a winner review their details, go back to change them, and submit', function () {
@@ -87,7 +88,7 @@ describe('gift card flow (screens 1 → 2 → 3/4 → 5 → 6 → 8)', function 
 
         $this->get("/r/{$qrCode->code}/details")
             ->assertOk()
-            ->assertSee('Review Your Details')
+            ->assertSee('Personal Details')
             ->assertSee('First Name')
             ->assertSee('Mobile Number')
             ->assertSee('I agree to the campaign');
@@ -101,13 +102,14 @@ describe('gift card flow (screens 1 → 2 → 3/4 → 5 → 6 → 8)', function 
             ->assertSee('Nimal')
             ->assertSee('Perera')
             ->assertSee('077 123 4567')
-            ->assertSee('btn-confirm-submit.webp');
+            ->assertSee('Almost there!')
+            ->assertSee('Verify');
 
         // "Back" keeps what they typed.
         $this->get("/r/{$qrCode->code}/details")->assertSee('value="Nimal"', false);
         $this->post("/r/{$qrCode->code}/details", details(['first_name' => 'Kamal']));
 
-        // Confirm & Submit → screen 8.
+        // Verify → screen 8.
         $this->post("/r/{$qrCode->code}")->assertRedirect("/r/{$qrCode->code}/received");
 
         $this->get("/r/{$qrCode->code}/received")
@@ -331,8 +333,22 @@ describe('other screens', function () {
         $this->get('/r/NOTAREALCODE')
             ->assertNotFound()
             ->assertSee("We couldn't find this code")
-            ->assertSee('btn-back-to-menu.webp')
+            ->assertSee('Back to Menu')
             ->assertSee('href="'.route('home').'"', false);
+    });
+
+    it('opens "How to Join" for Campaign Details, on the menu the person came from, without counting a scan', function () {
+        $qrCode = QrCode::factory()->create();
+        $this->get("/r/{$qrCode->code}");
+
+        $this->get('/campaign')->assertRedirect(route('redeem.show', $qrCode->code).'?how-to-join=1');
+
+        $this->get(route('redeem.show', $qrCode->code).'?how-to-join=1')
+            ->assertOk()
+            ->assertSeeInOrder(['How to Join', 'Step 1 :-', 'Advent Calendar Box', 'Step 2 :-', 'redeem your prize instantly'])
+            ->assertSee('dialog.showModal();', false); // opens straight away
+
+        expect($qrCode->fresh()->scan_count)->toBe(1);
     });
 
     it('shows the menu information pages, returning to the menu the person came from', function (string $url, string $title) {
@@ -344,7 +360,6 @@ describe('other screens', function () {
             ->assertSee($title, false)
             ->assertSee('href="'.route('redeem.show', $qrCode->code).'"', false);
     })->with([
-        ['/campaign', 'Campaign Details'],
         ['/terms', 'Terms &amp; Conditions'],
         ['/winners', 'Winners Gallery'],
     ]);
@@ -368,7 +383,8 @@ describe('other screens', function () {
             ->assertSee('href="tel:+94706335650"', false)
             ->assertSee('+94 70 63 35 650')
             // The text scrolls inside the panel and can be scrolled with the keyboard.
-            ->assertSee('class="lucky-scroll w-full" tabindex="0" role="region" aria-label="Terms and Conditions text"', false);
+            ->assertSee('tabindex="0" role="region" aria-label="Terms and Conditions text"', false)
+            ->assertSee('lucky-scroll', false);
     });
 
     it('versions image addresses, so a replaced image is never served from an old cache', function () {

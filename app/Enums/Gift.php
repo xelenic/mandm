@@ -23,20 +23,35 @@ enum Gift: string implements HasColor, HasLabel
      */
     public function prizeTitle(): string
     {
+        return $this->prizeAmount().' '.$this->prizeName();
+    }
+
+    /** The voucher's value, e.g. "Rs. 3,000". */
+    public function prizeAmount(): string
+    {
         return match ($this) {
-            self::SpaCeylon => 'Rs. 3,000 Spa Ceylon Gift Certificate',
-            self::CinnamonLifeDinner => 'Rs. 10,300 Cinnamon Life Gift Voucher',
+            self::SpaCeylon => 'Rs. 3,000',
+            self::CinnamonLifeDinner => 'Rs. 10,300',
+        };
+    }
+
+    /** The voucher's name, e.g. "Spa Ceylon Gift Certificate". */
+    public function prizeName(): string
+    {
+        return match ($this) {
+            self::SpaCeylon => 'Spa Ceylon Gift Certificate',
+            self::CinnamonLifeDinner => 'Cinnamon Life Gift Voucher',
         };
     }
 
     /**
-     * The "Congratulations!" card in public/images/lucky-draw (without ".webp").
+     * The voucher card shown to winners, in public/images/lucky-draw (without ".webp").
      */
     public function prizeImage(): string
     {
         return match ($this) {
-            self::SpaCeylon => 'prize-spa-ceylon',
-            self::CinnamonLifeDinner => 'prize-cinnamon-life',
+            self::SpaCeylon => 'voucher-spa-ceylon',
+            self::CinnamonLifeDinner => 'voucher-cinnamon-life',
         };
     }
 

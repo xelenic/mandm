@@ -1,9 +1,10 @@
-{{-- The cream card with a gold frame used on screens 5–8 of the design. --}}
+{{-- A rounded card: white (screens 3, 4, 7, 8) or green (the contact form, screens 5 and 6). --}}
+@props(['variant' => 'white'])
+
 <div {{ $attributes->class([
-    'w-[82cqw] rounded-[5cqw] bg-[linear-gradient(180deg,#fffaf0_0%,#f8ecd4_100%)] p-[1.2cqw]',
-    'border-[0.9cqw] border-gold shadow-[0_0_0_0.5cqw_rgba(255,220,140,0.35),0_10px_30px_rgba(0,0,0,0.45)]',
+    'flex w-[80cqw] flex-col items-center rounded-[6cqw] px-[6cqw] py-[6cqw] text-center shadow-[0_2cqw_5cqw_rgba(0,0,0,0.12)]',
+    'bg-white text-candy-text' => $variant === 'white',
+    'bg-mint text-white' => $variant === 'green',
 ]) }}>
-    <div class="flex flex-col items-center rounded-[3.8cqw] border-[0.35cqw] border-sand/80 px-[4cqw] py-[6cqw] text-center">
-        {{ $slot }}
-    </div>
+    {{ $slot }}
 </div>

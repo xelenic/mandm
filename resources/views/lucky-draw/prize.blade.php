@@ -1,30 +1,21 @@
-{{--
-    Screens 3 and 4: "Congratulations!". The whole card (voucher, amount and
-    text) is one image from the design; the button sits in its empty bottom area.
---}}
-<x-layouts.lucky-draw :title="'You won '.$gift->prizeTitle()">
-    <div class="relative mt-[2cqw] w-[82cqw] animate-pop-in [animation-delay:0.2s]">
-        {{-- Warm golden glow behind the card. --}}
-        <div class="absolute -inset-[4cqw] -z-10 animate-pulse rounded-[8cqw] bg-[radial-gradient(closest-side,rgba(255,214,102,0.55),transparent)]" aria-hidden="true"></div>
-
+{{-- Screens 3 and 4: "Congrats! You won a …". --}}
+<x-layouts.lucky-draw :title="'You won '.$gift->prizeTitle()" center>
+    <x-lucky.panel class="animate-pop-in [animation-delay:0.2s]">
         <img
             src="{{ \App\Support\LuckyDrawImage::url($gift->prizeImage()) }}"
-            alt="Congratulations! You won a {{ $gift->prizeTitle() }}. Enter your contact details to claim your prize."
-            width="910"
-            height="1087"
-            class="h-auto w-full drop-shadow-[0_10px_20px_rgba(0,0,0,0.45)]"
+            alt="{{ $gift->prizeTitle() }}"
+            class="h-auto w-[54cqw] rounded-[2.4cqw] shadow-[0_1.5cqw_3cqw_rgba(0,0,0,0.18)]"
         >
 
-        <div class="absolute bottom-[3.6%] left-1/2 w-[72%] -translate-x-1/2">
-            <x-lucky.button
-                :href="route('lucky.details', $code)"
-                image="btn-enter-contact-details"
-                label="Enter Contact Details"
-                primary
-                class="w-full animate-rise-in [animation-delay:0.9s]"
-            />
-        </div>
-    </div>
+        <h1 class="mt-[7cqw] font-title text-[7.2cqw] leading-none font-bold text-candy">Congrats!</h1>
+        <p class="mt-[1.5cqw] text-[5.4cqw]">You won a</p>
+        <p class="mt-[2cqw] font-title text-[10.5cqw] leading-none font-bold text-candy uppercase">{{ $gift->prizeAmount() }}</p>
+        <p class="mt-[2cqw] font-title text-[4cqw] font-bold whitespace-nowrap text-candy">{{ $gift->prizeName() }}</p>
+
+        <x-lucky.button :href="route('lucky.details', $code)" size="sm" primary class="mt-[7cqw] animate-rise-in [animation-delay:0.9s]">
+            Enter Contact Details
+        </x-lucky.button>
+    </x-lucky.panel>
 
     <x-lucky.confetti />
 </x-layouts.lucky-draw>

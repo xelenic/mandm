@@ -89,7 +89,8 @@ class LuckyDrawController extends Controller
     {
         $qrCode = $this->qrCode($code);
 
-        if (! $this->claimedHere($request, $qrCode)) {
+        // Reopening the menu for the How to Join pop-up is not a new scan.
+        if (! $this->claimedHere($request, $qrCode) && ! $request->boolean('how-to-join')) {
             $qrCode->recordScan();
         }
 
@@ -209,13 +210,16 @@ class LuckyDrawController extends Controller
 
     // ---- Menu information pages ---------------------------------------------
 
-    public function campaign(Request $request): View
+    /**
+     * "Campaign Details" is the How to Join pop-up on the menu. The menu opens
+     * it in place; this address (for links and browsers without JavaScript)
+     * shows the menu the person came from with the pop-up already open.
+     */
+    public function campaign(Request $request): RedirectResponse
     {
-        return $this->message($request, 'Campaign Details', [
-            "Find the QR card inside your M&M's Christmas pack and scan it with your phone camera to enter the lucky draw.",
-            'Prizes include a Rs. 3,000 Spa Ceylon Gift Certificate and a Rs. 10,300 Cinnamon Life Gift Voucher.',
-            'One entry per card. Winners enter their contact details, and our team contacts them to verify the win and arrange delivery.',
-        ]);
+        $menu = $request->session()->get(self::MENU, route('home'));
+
+        return redirect()->to($menu.'?how-to-join=1');
     }
 
     public function terms(Request $request): View
